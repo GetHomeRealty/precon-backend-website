@@ -45,15 +45,17 @@ export function Counter({ value, min, max }: { value: string; min: number; max: 
 }
 
 let baseCache: string | null = null;
+// Starts empty on both server and client (so hydration matches), then fills in.
 function useBaseUrl() {
-  const [base, setBase] = useState(baseCache || '');
+  const [base, setBase] = useState('');
   useEffect(() => {
-    if (baseCache) return;
+    if (baseCache) { setBase(baseCache); return; }
+    setBase(window.location.origin);
     api<Rec>('/api/admin/content/settings')
       .then((s) => { const b: string = s.canonical_base_url || window.location.origin; baseCache = b; setBase(b); })
-      .catch(() => setBase(window.location.origin));
+      .catch(() => {});
   }, []);
-  return base || (typeof window !== 'undefined' ? window.location.origin : '');
+  return base;
 }
 
 export default function SeoPanel({ resourceKey, id, rec, seo, set }: {

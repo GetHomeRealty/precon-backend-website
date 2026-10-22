@@ -47,14 +47,13 @@ export default function ResourceForm({ resourceKey, id }: { resourceKey: string;
   const router = useRouter();
   const toast = useToast();
   // "Add project in Hyderabad" from the website opens /admin/projects/new?city=Hyderabad.
-  const [rec, setRec] = useState<Rec | null>(() => {
-    if (!isNew) return null;
-    const init = blank(r);
-    const qs = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search);
-    const city = qs?.get('city');
-    if (city && r.fields.some((f) => f.name === 'city') && /^[A-Za-z .-]{2,40}$/.test(city)) init.city = city;
-    return init;
-  });
+  const [rec, setRec] = useState<Rec | null>(isNew ? blank(r) : null);
+  // Applied after mount so the server and browser render the same first HTML.
+  useEffect(() => {
+    if (!isNew) return;
+    const city = new URLSearchParams(window.location.search).get('city');
+    if (city && r.fields.some((f) => f.name === 'city') && /^[A-Za-z .-]{2,40}$/.test(city)) setRec((p) => (p && !p.city ? { ...p, city } : p));
+  }, [isNew]); // eslint-disable-line react-hooks/exhaustive-deps -- once, on open
   const [loadErr, setLoadErr] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formErr, setFormErr] = useState('');
