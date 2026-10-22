@@ -31,7 +31,7 @@ function Alert({ kind, children }: { kind: 'err' | 'ok'; children: React.ReactNo
 }
 
 /** Only same-app admin paths are allowed as a post-login destination. */
-const safeNext = (n: string | null) => (n && /^\/admin\/[\w\-/]*$/.test(n) && !n.startsWith('/admin/login') ? n : '/admin/dashboard');
+const safeNext = (n: string | null) => (n && /^\/admin\/[\w\-/]*(\?[\w\-=&%.]*)?$/.test(n) && !n.startsWith('/admin/login') ? n : '/admin/dashboard');
 
 export function LoginForm({ next }: { next: string | null }) {
   const router = useRouter();

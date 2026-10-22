@@ -147,6 +147,7 @@
           <a href="#privacy">Privacy Policy</a>
           <a href="#terms">Terms &amp; Conditions</a>
           <a href="#disclaimer">Disclaimer</a>
+          <a href="/admin/login" rel="nofollow">Admin login</a>
         </div>
       </div>
     </div>
@@ -410,7 +411,28 @@
     if(window.GHR_PAGE_INIT)window.GHR_PAGE_INIT();
     if(window.GHR.applyCms)window.GHR.applyCms(page); // admin-managed text/images (cms.js)
     wireReveal(); // run after page-specific content (e.g. What We Do / Client Stories) is injected
+    wireAdminBar(page);
   });
+
+  /* Signed-in admins get shortcuts into the admin panel (add a project, dashboard).
+     Visitors never see it: /api/auth/status only says whether this browser has an
+     admin session, and on a plain static host the request simply fails. */
+  function wireAdminBar(page){
+    if(!window.fetch) return;
+    fetch('/api/auth/status',{credentials:'same-origin',cache:'no-store'})
+      .then(r=>r.ok?r.json():null).then(s=>{
+        if(!s||!s.signedIn) return;
+        const city=page==='hyderabad.html'?'Hyderabad':page==='visakhapatnam.html'?'Visakhapatnam':'';
+        const add='/admin/projects/new'+(city?'?city='+city:'');
+        const bar=document.createElement('div');
+        bar.className='admin-bar';
+        bar.innerHTML=`<span class="admin-bar-tag">Admin</span>
+          <a class="admin-bar-add" href="${add}">+ Add project${city?' in '+city:''}</a>
+          <a href="/admin/properties/new">+ Add property</a>
+          <a href="/admin/dashboard">Dashboard</a>`;
+        document.body.appendChild(bar);
+      }).catch(()=>{});
+  }
 
   function wireWhatsApp(){
     const w=document.getElementById('waWidget');if(!w)return;

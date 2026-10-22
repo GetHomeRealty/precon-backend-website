@@ -19,7 +19,7 @@ export function proxy(req: NextRequest) {
   if (PUBLIC_ADMIN.some((p) => pathname === p)) return NextResponse.next();
   if (!hasSession) {
     const url = new URL('/admin/login', req.url);
-    url.searchParams.set('next', pathname);
+    url.searchParams.set('next', pathname + req.nextUrl.search);
     return NextResponse.redirect(url);
   }
   return NextResponse.next();

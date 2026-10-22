@@ -46,7 +46,15 @@ export default function ResourceForm({ resourceKey, id }: { resourceKey: string;
   const isNew = id === 'new';
   const router = useRouter();
   const toast = useToast();
-  const [rec, setRec] = useState<Rec | null>(isNew ? blank(r) : null);
+  // "Add project in Hyderabad" from the website opens /admin/projects/new?city=Hyderabad.
+  const [rec, setRec] = useState<Rec | null>(() => {
+    if (!isNew) return null;
+    const init = blank(r);
+    const qs = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search);
+    const city = qs?.get('city');
+    if (city && r.fields.some((f) => f.name === 'city') && /^[A-Za-z .-]{2,40}$/.test(city)) init.city = city;
+    return init;
+  });
   const [loadErr, setLoadErr] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formErr, setFormErr] = useState('');
