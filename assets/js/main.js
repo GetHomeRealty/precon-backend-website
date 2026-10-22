@@ -147,7 +147,7 @@
           <a href="#privacy">Privacy Policy</a>
           <a href="#terms">Terms &amp; Conditions</a>
           <a href="#disclaimer">Disclaimer</a>
-          <a href="/admin" rel="nofollow">Manage Website</a>
+          <a href="/admin/login?reauth=1" rel="nofollow">Manage Website</a>
         </div>
       </div>
     </div>

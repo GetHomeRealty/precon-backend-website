@@ -34,6 +34,9 @@ export function passwordProblem(pw: string): string | null {
 }
 
 export async function createSession(adminId: number, ip: string, ua: string) {
+  // Signing in again replaces this browser's previous session.
+  const previous = (await cookies()).get(SESSION_COOKIE)?.value;
+  if (previous && previous.length <= 100) await q('delete from sessions where id = $1', [sha256(previous)]);
   const token = randomToken();
   const csrf = randomToken(24);
   await q(
