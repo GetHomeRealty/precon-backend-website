@@ -495,16 +495,6 @@ ul{margin:0;padding:0;list-style:none}
 .footer-bottom{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;padding-block:1.6rem;font-size:.84rem}
 .footer-bottom .legal{display:flex;gap:1.3rem;flex-wrap:wrap}
 .footer-bottom a:hover{color:#fff}
-/* admin shortcuts — only rendered for a signed-in admin (main.js wireAdminBar) */
-.admin-bar{position:fixed;left:20px;bottom:20px;z-index:960;display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;
-  max-width:calc(100vw - 110px);padding:.4rem;background:var(--ink,#122340);color:#fff;border-radius:999px;
-  box-shadow:0 10px 30px rgba(18,35,64,.35);font-size:.85rem;font-weight:600}
-.admin-bar a{color:#fff;padding:.45rem .8rem;border-radius:999px;white-space:nowrap}
-.admin-bar a:hover{background:rgba(255,255,255,.14)}
-.admin-bar .admin-bar-add{background:#CE1126}
-.admin-bar .admin-bar-add:hover{background:#A50D1F}
-.admin-bar-tag{padding:0 .5rem 0 .7rem;font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;opacity:.7}
-@media(max-width:560px){.admin-bar{left:12px;bottom:12px;font-size:.8rem;flex-wrap:nowrap}.admin-bar-tag,.admin-bar a:not(.admin-bar-add):not(:last-child){display:none}}
 .disclaimer{background:#0e0c0b;color:var(--slate-2);font-size:.8rem;text-align:center;padding:1rem var(--gutter);line-height:1.5}
 
 /* ---------- whatsapp / floating ---------- */
