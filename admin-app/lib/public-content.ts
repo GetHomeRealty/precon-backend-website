@@ -3,6 +3,7 @@
 import { q, type Row } from './db';
 import { formatMoney } from './resources';
 import { readSingleton } from './singletons';
+import { canonicalCity } from './crud';
 
 // Explicit allow-lists. Internal columns (builder_price, brokerage_price) are never
 // selected here, so they cannot reach the public payload even by mistake.
@@ -19,7 +20,7 @@ function projectOut(p: Row, imgs: Row[]) {
   const extra = (p.extra || {}) as Record<string, any>;
   const gallery = imgs.filter((i) => i.kind === 'gallery').map((i) => i.url);
   return {
-    id: p.slug, name: p.name, developer: p.developer || '—', city: p.city || '', area: p.location || '',
+    id: p.slug, name: p.name, developer: p.developer || '—', city: canonicalCity(p.city) || '', area: p.location || '',
     lat: n(p.lat), lng: n(p.lng), rateLow: n(p.price_from) || 0,
     rate: p.starting_price || (p.public_price ? `Starting from ${formatMoney(p.public_price, p.currency)}` : 'On request'),
     sizes: p.unit_sizes || 'On request',

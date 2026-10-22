@@ -563,7 +563,7 @@
           <a class="btn btn--ghost btn--sm" href="tel:${GHR_TEL}">${ICON.phone||''}Call · ${esc(GHR_TEL_DISP)}</a>
           ${S.brochure?`<a class="btn btn--ghost btn--sm" href="${esc(mediaUrl(S.brochure))}" target="_blank" rel="noopener" download>${ICON.doc||''}Brochure</a>`
             :`<button type="button" class="btn btn--ghost btn--sm" data-pm-brochure>${ICON.doc||''}Brochure</button>`}
-          ${_map?`<button type="button" class="btn btn--ghost btn--sm" data-pm-locate>${ICON.pin||''}Locate on map</button>`:''}
+          ${_map&&_markers&&_markers[S.d.id]?`<button type="button" class="btn btn--ghost btn--sm" data-pm-locate>${ICON.pin||''}Locate on map</button>`:''}
           ${window.GHR_CMS?`<a class="btn btn--ghost btn--sm" href="/projects/${encodeURIComponent(d.id)}">Full project page</a>`:''}
         </div>
       </div>`;
@@ -944,12 +944,15 @@
     const devs=(window.GHR.GHR_DEVELOPERS||[]).filter(d=>d.city===opts.city);
 
     const map=L.map(opts.mapId,{scrollWheelZoom:false}).setView(opts.center,12);
-    // Muted light-gray basemap (matches the reference look)
-    const lightBase=L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png',{
-      attribution:'&copy; OpenStreetMap &copy; CARTO',maxZoom:20});
-    const satBase=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
+    // Muted light-gray basemap: Esri Light Gray Canvas + its label layer (no API key needed —
+    // CARTO basemaps now require one). Native tiles stop at z16; Leaflet upscales beyond that.
+    const ESRI='https://server.arcgisonline.com/ArcGIS/rest/services/';
+    const lightBase=L.layerGroup([
+      L.tileLayer(ESRI+'Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',{attribution:'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors',maxNativeZoom:16,maxZoom:19}),
+      L.tileLayer(ESRI+'Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:16,maxZoom:19})]);
+    const satBase=L.tileLayer(ESRI+'World_Imagery/MapServer/tile/{z}/{y}/{x}',{
       attribution:'Imagery &copy; Esri, Maxar, Earthstar Geographics',maxZoom:19});
-    const satLabels=L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/light_only_labels/{z}/{x}/{y}{r}.png',{maxZoom:20});
+    const satLabels=L.tileLayer(ESRI+'Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:19});
     lightBase.addTo(map);
     // optional street/satellite switch (light is default, matching reference)
     L.control.layers({'Map':lightBase,'Satellite':satBase},null,{position:'topright'}).addTo(map);
@@ -975,6 +978,7 @@
 
     const devMarkers={};
     devs.forEach(d=>{
+      if(typeof d.lat!=='number'||typeof d.lng!=='number') return;  // listed in the directory, no pin
       const m=L.marker([d.lat,d.lng],{icon:greenDot()});
       m.bindPopup(devPopupHtml(d),{closeButton:true,maxWidth:260});
       m.on('mouseover',()=>m.openPopup());

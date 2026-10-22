@@ -125,9 +125,24 @@ function mediaUrls(r: Resource, rec: Row): string[] {
   return urls.filter(Boolean);
 }
 
+/** "Hyd", "hyderabad", "Vizag", "VSKP"… → the city names the map pages match on. */
+export function canonicalCity(city: unknown) {
+  const c = String(city ?? '').trim();
+  if (/^(hyd|hyderabad|secunderabad)\b/i.test(c)) return 'Hyderabad';
+  if (/^(vizag|vskp|visakha|vishakha|visakapatnam|vishakapatnam)/i.test(c)) return 'Visakhapatnam';
+  return c || null;
+}
+
 export async function create(r: Resource, input: unknown, adminId: number, role: Role) {
   const data = resourceSchema(r, false).parse(inputForRole(r, input, role)) as Row;
+  if ((r.table === 'projects' || r.table === 'properties') && 'city' in data) data.city = canonicalCity(data.city);
   const id = await tx(async (db) => {
+    // A new project goes to the top of its city's list (lowest display order first),
+    // unless an order was set explicitly.
+    if (r.table === 'projects' && !Number(data.display_order)) {
+      const [{ m }] = await db.query('select coalesce(min(display_order), 0)::int as m from projects');
+      data.display_order = m - 1;
+    }
     if (r.slugFrom) data.slug = await uniqueSlug(r, data.slug || slugify(String(data[r.slugFrom] || '')), db);
     const { cols, vals, casts } = toDb(r, data);
     cols.push('created_by', 'updated_by'); vals.push(adminId, adminId); casts.push('', '');
@@ -141,6 +156,7 @@ export async function create(r: Resource, input: unknown, adminId: number, role:
 
 export async function update(r: Resource, id: number, input: unknown, adminId: number, role: Role) {
   const data = resourceSchema(r, true).parse(inputForRole(r, input, role)) as Row;
+  if ((r.table === 'projects' || r.table === 'properties') && 'city' in data) data.city = canonicalCity(data.city);
   const before = await get(r, id);
   await tx(async (db) => {
     if (r.slugFrom && 'slug' in data) data.slug = await uniqueSlug(r, data.slug || slugify(String(data[r.slugFrom] ?? before[r.slugFrom] ?? '')), db, id);

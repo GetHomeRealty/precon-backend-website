@@ -44,7 +44,7 @@ export function suggestSeo(kind: SuggestKind, r: Record<string, any>): Suggestio
       const what = join(beds, type).join(' ');
       const price = clean(r.price_label) || (r.price ? formatMoney(r.price, r.currency) : '');
       const base = `${what}${where ? ` in ${where}` : ''}`;
-      const seo_title = firstFit(TITLE_MAX, `${base} | ${price} | ${BRAND}`, `${base} | ${BRAND}`, `${clean(r.title)} | ${BRAND}`, base);
+      const seo_title = firstFit(TITLE_MAX, price ? `${base} | ${price} | ${BRAND}` : ``, `${base} | ${BRAND}`, `${clean(r.title)} | ${BRAND}`, base);
       const facts = join(beds && `${beds}`, r.bathrooms && `${r.bathrooms} bath`, r.sqft && `${Number(r.sqft).toLocaleString('en-IN')} sq.ft`).join(', ');
       const meta_description = clip(
         `${clean(r.title) || base}${where ? ` in ${where}` : ''}${facts ? ` — ${facts}` : ''}${price ? `, ${price}` : ''}. ` +

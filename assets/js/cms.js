@@ -41,8 +41,8 @@
   if(Array.isArray(C.projects)){
     var projects = cleanAll(C.projects);
     projects.forEach(adoptProject);
-    // Only projects with coordinates can be plotted.
-    G.GHR_DEVELOPERS = projects.filter(function(p){ return typeof p.lat==='number' && typeof p.lng==='number'; });
+    // Every published project is listed on its city page; only those with coordinates get a map pin.
+    G.GHR_DEVELOPERS = projects;
   }
   G.featuredProjects = cleanAll(C.featuredProjects || []);
   G.featuredProjects.forEach(adoptProject);

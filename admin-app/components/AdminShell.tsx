@@ -73,8 +73,8 @@ export default function AdminShell({ admin, csrf, newLeads, children }: {
       <div className={`shell ${collapsed ? 'collapsed' : ''} ${drawer ? 'drawer-open' : ''}`}>
         <aside className="side" aria-label="Admin navigation">
           <div className="side-brand">
-            <div className="mark">GHR</div>
-            <div className="tag-wrap"><div style={{ fontWeight: 700, lineHeight: 1.1 }}>Get Home Realty</div><div className="tag">Admin</div></div>
+            <img className="brand-icon" src="/assets/img/ghr-icon-192.png" alt="Get Home Realty" />
+            <div className="tag-wrap"><img className="brand-logo" src="/assets/img/ghr-logo-header.png" alt="Get Home Realty" /><div className="tag">Admin Panel</div></div>
             <button className="icon-btn only-mobile" style={{ marginLeft: 'auto' }} onClick={() => setDrawer(false)} aria-label="Close menu"><X size={18} /></button>
           </div>
           <nav className="side-nav">
