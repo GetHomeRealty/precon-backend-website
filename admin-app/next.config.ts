@@ -12,6 +12,8 @@ const config: NextConfig = {
   // Native / WASM packages stay outside the bundle.
   serverExternalPackages: ['@electric-sql/pglite', 'sharp', 'postgres'],
   poweredByHeader: false,
+  // Hide the Next.js dev-tools button (bottom-left) — it overlapped the admin sidebar.
+  devIndicators: false,
   agentRules: false,
   // Server-rendered pages read the page templates and data.js at runtime.
   outputFileTracingIncludes: {
