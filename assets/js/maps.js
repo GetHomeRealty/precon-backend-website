@@ -7,13 +7,15 @@
   const ICON=window.GHR.ICON;
 
   // red dot marker (reference style)
-  function greenDot(){
+  // Map pin: red teardrop with the GHR umbrella logo; n>1 adds a count badge (clusters).
+  function ghrPin(n){
     return L.divIcon({
-      className:'gh-marker',
-      html:`<div class="gh-pin"></div>`,
-      iconSize:[22,22],iconAnchor:[11,11],popupAnchor:[0,-13]
+      className:'gh-marker'+(n?' gh-marker--group':''),
+      html:`<div class="gh-mk"><span class="gh-mk-head"><img src="/assets/img/ghr-icon-192.png" alt="" draggable="false"></span>${n?`<b class="gh-mk-n">${n}</b>`:''}</div>`,
+      iconSize:[40,50],iconAnchor:[20,49],popupAnchor:[0,-46]
     });
   }
+  const greenDot=()=>ghrPin(0);   // single project (name kept from the old dot markers)
 
   function rateBand(d){
     if(!d.rateLow) return '';
@@ -965,10 +967,7 @@
     const useCluster = typeof L.markerClusterGroup==='function';
     const cluster = useCluster ? L.markerClusterGroup({
       showCoverageOnHover:false, spiderfyOnMaxZoom:true, maxClusterRadius:48,
-      iconCreateFunction:function(c){
-        const n=c.getChildCount();
-        return L.divIcon({html:'<div><span class="pl">+</span>'+n+'</div>',className:'gh-cluster'+(n>15?' lg':''),iconSize:[34,34]});
-      }
+      iconCreateFunction:function(c){ return ghrPin(c.getChildCount()); }
     }) : null;
     function addMk(m){ if(useCluster) cluster.addLayer(m); else m.addTo(map); }
     function rmMk(m){ if(useCluster) cluster.removeLayer(m); else map.removeLayer(m); }
