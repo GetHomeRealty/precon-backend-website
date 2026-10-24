@@ -1359,3 +1359,85 @@ section[id],[id].section{scroll-margin-top:calc(var(--header-h) + 18px)}
   /* service / feature cards: a little tighter */
   .grid.cols-3>.card{padding:1.3rem 1.25rem}
 }
+
+/* =====================================================================
+   Card refresh (site-wide): softer gradient surfaces, brand-tinted depth,
+   gradient icon tiles, image overlays and livelier hover states.
+   Self-contained — delete this block to return to the previous look.
+   ===================================================================== */
+:root{--card-r:18px;--card-line:rgba(18,35,64,.08);
+  --card-shadow:0 1px 2px rgba(18,35,64,.04),0 8px 24px rgba(18,35,64,.06);
+  --card-shadow-hover:0 2px 4px rgba(18,35,64,.04),0 24px 48px rgba(206,17,38,.14);
+  --tile-grad:linear-gradient(135deg,#FFF3F5 0%,#FFE0E6 100%);
+  --red-grad:linear-gradient(135deg,#E0263C 0%,#A50D1F 100%)}
+
+/* — content cards: services, highlights, what-we-do, client stories — */
+.card,.story{border-radius:var(--card-r);border:1px solid var(--card-line);box-shadow:var(--card-shadow);
+  background:linear-gradient(180deg,#fff 0%,#fff 55%,#FFF8F9 100%);overflow:hidden;isolation:isolate}
+.card::before,.story::before{content:"";position:absolute;z-index:-1;right:-70px;top:-70px;width:190px;height:190px;border-radius:50%;
+  background:radial-gradient(circle,rgba(206,17,38,.10) 0%,rgba(206,17,38,0) 70%);opacity:.55;transition:opacity .35s,transform .45s cubic-bezier(.2,.7,.2,1)}
+.card:hover::before,.story:hover::before{opacity:1;transform:scale(1.25)}
+.card:hover,.story:hover{transform:translateY(-7px);box-shadow:var(--card-shadow-hover);border-color:rgba(206,17,38,.22)}
+.card::after,.story::after{height:4px;background:var(--red-grad)}
+.card .ic,.story-ic{width:54px;height:54px;border-radius:15px;background:var(--tile-grad);color:var(--red);
+  box-shadow:inset 0 0 0 1px rgba(206,17,38,.10),0 6px 14px rgba(206,17,38,.10)}
+.story-ic{width:46px;height:46px;border-radius:13px}
+.card .ic svg{width:25px;height:25px}
+.card:hover .ic,.story:hover .story-ic{background:var(--red-grad);color:#fff;box-shadow:0 10px 22px rgba(206,17,38,.35)}
+.card h3,.story-title{transition:color .25s}
+.card:hover h3,.story:hover .story-title{color:var(--red-deep)}
+.card .card-link{font-weight:700}
+/* cards on the dark investor band keep their dark surface */
+.section--ink .card{background:linear-gradient(180deg,#221d1a 0%,#1a1614 100%)!important;border-color:rgba(255,255,255,.10)!important;box-shadow:none}
+.section--ink .card:hover{border-color:rgba(224,38,60,.55)!important;box-shadow:0 22px 46px rgba(0,0,0,.45)}
+.section--ink .card::before{background:radial-gradient(circle,rgba(224,38,60,.22) 0%,rgba(224,38,60,0) 70%)}
+.section--ink .card:hover h3{color:#fff}
+
+/* — city service cards with a photo — */
+.svc-city .svc-city-img{position:relative;transition:transform .7s cubic-bezier(.2,.6,.2,1)}
+.svc-city:hover .svc-city-img{transform:scale(1.05)}
+.svc-city .svc-city-img::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(18,17,15,.35),rgba(18,17,15,0) 55%)}
+
+/* — numbered process steps — */
+.step{border-radius:var(--card-r);border:1px solid var(--card-line);box-shadow:var(--card-shadow);position:relative;overflow:hidden;
+  transition:transform .32s cubic-bezier(.2,.7,.2,1),box-shadow .32s,border-color .3s}
+.step::before{background:var(--tile-grad);border:0;color:var(--red);font-weight:700;box-shadow:inset 0 0 0 1px rgba(206,17,38,.12);
+  transition:background .3s,color .3s,box-shadow .3s,transform .3s}
+.step::after{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--red-grad);transform:scaleY(0);transform-origin:top;transition:transform .35s cubic-bezier(.2,.7,.2,1)}
+.step:hover{transform:translateY(-4px);box-shadow:var(--card-shadow-hover);border-color:rgba(206,17,38,.2)}
+.step:hover::before{background:var(--red-grad);color:#fff;box-shadow:0 8px 18px rgba(206,17,38,.32);transform:scale(1.05)}
+.step:hover::after{transform:scaleY(1)}
+
+/* — listing & project cards — */
+.prop,.dv{border-radius:var(--card-r);border:1px solid var(--card-line);box-shadow:var(--card-shadow)}
+.prop:hover,.dv:hover,.dv.active{box-shadow:var(--card-shadow-hover);border-color:rgba(206,17,38,.28)}
+.prop-media::after,.dv-img::after{content:"";position:absolute;inset:auto 0 0 0;height:55%;z-index:1;pointer-events:none;
+  background:linear-gradient(to top,rgba(18,17,15,.42),rgba(18,17,15,0))}
+.prop-badge,.prop-status,.dv-status,.dv-img > span,.dv-img > b{z-index:2}
+.dv-img{border-bottom:0}
+.dv-img::before{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;z-index:2;background:var(--red-grad)}
+.dv-name{transition:color .25s}
+.dv .dv-more,.prop .prop-actions .btn{transition:gap .2s,transform .2s}
+
+/* — advisor cards — */
+.agent{border-radius:var(--card-r);border:1px solid var(--card-line);box-shadow:var(--card-shadow);position:relative}
+.agent:hover{transform:translateY(-7px);box-shadow:var(--card-shadow-hover);border-color:rgba(206,17,38,.22)}
+.agent .photo{position:relative}
+.agent .photo::after{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;background:var(--red-grad)}
+.agent h3,.agent .name{transition:color .25s}
+.agent:hover h3,.agent:hover .name{color:var(--red-deep)}
+
+/* — contact info tiles & stats — */
+.info-row .ic{background:var(--tile-grad);box-shadow:inset 0 0 0 1px rgba(206,17,38,.10);transition:background .25s,color .25s}
+.info-row:hover .ic{background:var(--red-grad);color:#fff}
+.stat-band{border-radius:var(--card-r);box-shadow:var(--card-shadow)}
+
+/* phones: keep the compact row layouts flat (no lift), lighter shadows */
+@media(max-width:560px){
+  .card:hover,.story:hover,.agent:hover,.step:hover{transform:none}
+  .card::before,.story::before{width:140px;height:140px;right:-50px;top:-50px}
+  .dv-img::before{left:auto;top:0;bottom:0;right:0;width:3px;height:auto}
+}
+@media(prefers-reduced-motion:reduce){
+  .card,.story,.step,.agent,.prop,.dv,.card::before,.story::before,.svc-city .svc-city-img{transition:none}
+}
