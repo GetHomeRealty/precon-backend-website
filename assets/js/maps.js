@@ -1011,10 +1011,14 @@
           const o=document.createElement('option');o.value=a;o.textContent=a;areaSel.appendChild(o);
         });
       }
+      // builder dropdown: every builder A–Z with its project count
       const devSel=dwrap.querySelector('[data-df="builder"]');
       if(devSel){
-        [...new Set(devs.map(d=>d.developer))].sort().forEach(b=>{
-          const o=document.createElement('option');o.value=b;o.textContent=b;devSel.appendChild(o);
+        const counts={};
+        devs.forEach(d=>{counts[d.developer]=(counts[d.developer]||0)+1});
+        if(devSel.options[0]) devSel.options[0].textContent='All Builders ('+devs.length+')';
+        Object.keys(counts).sort((a,b)=>a.localeCompare(b)).forEach(b=>{
+          const o=document.createElement('option');o.value=b;o.textContent=b+' ('+counts[b]+')';devSel.appendChild(o);
         });
       }
       const statusSel=dwrap.querySelector('[data-df="status"]');
@@ -1033,24 +1037,11 @@
         if(ready) opt('ready','Ready to move ('+ready+')');
         Object.keys(tally).sort().forEach(y=>opt(y,'Handover '+y+' ('+tally[y]+')'));
       }
-      // builder chips (name + project count), busiest builders first
-      let chips=null;
-      const counts={};
-      devs.forEach(d=>{counts[d.developer]=(counts[d.developer]||0)+1});
-      const builders=Object.keys(counts).sort((a,b)=>counts[b]-counts[a]||a.localeCompare(b));
-      if(builders.length>1){
-        chips=document.createElement('div');
-        chips.className='dev-chips';
-        chips.innerHTML='<button type="button" class="dev-chip is-on" data-dev="">All builders <b>'+devs.length+'</b></button>'+
-          builders.map(b=>'<button type="button" class="dev-chip" data-dev="'+esc(b)+'">'+esc(b)+' <b>'+counts[b]+'</b></button>').join('');
-        dwrap.insertAdjacentElement('afterend',chips);
-      }
       const dapply=()=>{
         const fa=dwrap.querySelector('[data-df="area"]'),fb=dwrap.querySelector('[data-df="band"]'),
               fd=dwrap.querySelector('[data-df="builder"]'),fy=dwrap.querySelector('[data-df="year"]'),
               fs=dwrap.querySelector('[data-df="status"]');
         const who=fd?fd.value:'', when=fy?fy.value:'', stage=fs?fs.value:'';
-        if(chips) chips.querySelectorAll('.dev-chip').forEach(c=>c.classList.toggle('is-on',c.dataset.dev===who));
         let shown=0;
         devs.forEach(d=>{
           let vis=true;
@@ -1067,13 +1058,6 @@
         if(empty)empty.style.display=shown?'none':'block';
       };
       dwrap.querySelectorAll('[data-df]').forEach(s=>s.addEventListener('change',dapply));
-      if(chips) chips.addEventListener('click',e=>{
-        const btn=e.target.closest('.dev-chip'); if(!btn) return;
-        if(devSel) devSel.value=btn.dataset.dev;
-        dapply();
-        const list=devList&&devList.parentNode?devList:null;
-        if(list) list.scrollIntoView({behavior:'smooth',block:'nearest'});
-      });
     }
 
     // deep link: ?project=<id> opens that project's modal (e.g. from homepage featured)
