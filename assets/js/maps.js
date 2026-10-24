@@ -434,6 +434,9 @@
 
   /* ---------------- Project details modal ---------------- */
   let _modal=null,_panel=null,_map=null,_markers={},_cluster=null;
+  // OpenStreetMap standard tiles (https://operations.osmfoundation.org/policies/tiles/)
+  const OSM_TILES='https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+  const OSM_ATTR='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors';
   // Our projects desk, never the builder's line. Follows Contact Details in the
   // admin (via main.js GHR_CONFIG); the literals are the built-in fallback.
   const _cfg=window.GHR_CONFIG||{};
@@ -825,10 +828,7 @@
     if(mm&&!mm._map&&typeof L!=='undefined'){
       const d=_deck.d;
       mm._map=L.map(mm,{scrollWheelZoom:false,dragging:!L.Browser.mobile,tap:false}).setView([d.lat,d.lng],14);
-      // Esri light-grey canvas (no API key needed) — CARTO basemaps now require a key.
-      const esri='https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/';
-      L.tileLayer(esri+'World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',{attribution:'Tiles &copy; Esri',maxZoom:16}).addTo(mm._map);
-      L.tileLayer(esri+'World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',{maxZoom:16}).addTo(mm._map);
+      L.tileLayer(OSM_TILES,{attribution:OSM_ATTR,maxZoom:19}).addTo(mm._map);
       L.marker([d.lat,d.lng],{icon:greenDot()}).addTo(mm._map);
       setTimeout(()=>mm._map.invalidateSize(),360);
     }
@@ -944,12 +944,9 @@
     const devs=(window.GHR.GHR_DEVELOPERS||[]).filter(d=>d.city===opts.city);
 
     const map=L.map(opts.mapId,{scrollWheelZoom:false}).setView(opts.center,12);
-    // Muted light-gray basemap: Esri Light Gray Canvas + its label layer (no API key needed —
-    // CARTO basemaps now require one). Native tiles stop at z16; Leaflet upscales beyond that.
+    // Basemap: standard OpenStreetMap tiles (no API key). Satellite stays on Esri imagery.
     const ESRI='https://server.arcgisonline.com/ArcGIS/rest/services/';
-    const lightBase=L.layerGroup([
-      L.tileLayer(ESRI+'Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',{attribution:'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors',maxNativeZoom:16,maxZoom:19}),
-      L.tileLayer(ESRI+'Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:16,maxZoom:19})]);
+    const lightBase=L.tileLayer(OSM_TILES,{attribution:OSM_ATTR,maxZoom:19});
     const satBase=L.tileLayer(ESRI+'World_Imagery/MapServer/tile/{z}/{y}/{x}',{
       attribution:'Imagery &copy; Esri, Maxar, Earthstar Geographics',maxZoom:19});
     const satLabels=L.tileLayer(ESRI+'Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:19});
