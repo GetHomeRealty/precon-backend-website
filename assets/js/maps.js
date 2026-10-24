@@ -800,7 +800,8 @@
   }
 
   function deckHtml(S,slides){
-    return `<div class="pm-deckhead"><nav class="pm-steps" role="tablist" aria-label="${esc(S.d.name)} — sections">${slides.map((s,i)=>
+    return `<div class="pm-deckhead"><button type="button" class="pm-back" data-pm-close aria-label="Back to projects">&#8592;<span> Back</span></button>
+      <span class="pm-dtitle">${esc(S.d.name)}</span><nav class="pm-steps" role="tablist" aria-label="${esc(S.d.name)} — sections">${slides.map((s,i)=>
       `<button type="button" role="tab" class="pm-step" data-go="${i}" aria-controls="pm-sl-${i}">${esc(s.label)}</button>`).join('')}</nav>
       <button class="pm-close" data-pm-close aria-label="Close details">&times;</button></div>
     <div class="pm-deck" data-deck><div class="pm-strack" data-strack>${slides.map((s,i)=>
@@ -894,7 +895,7 @@
   function ensureModal(){
     if(_modal) return;
     _modal=document.createElement('div');
-    _modal.className='pm-scrim';
+    _modal.className='pm-scrim pm-scrim--page';   // full window below the site navbar
     _modal.innerHTML='<div class="pm-panel pm-panel--deck" role="dialog" aria-modal="true" aria-label="Project details"></div>';
     document.body.appendChild(_modal);
     _panel=_modal.querySelector('.pm-panel');
@@ -906,7 +907,24 @@
         goSlide(_deck.i+(e.key==='ArrowRight'?1:-1));
     });
   }
-  function closeModal(){ if(_modal){ _modal.classList.remove('open'); document.body.style.overflow=''; } }
+  // The project view fills the window under the navbar and gets its own address
+  // (?project=<id>), so Back closes it and the link can be shared.
+  let _pushed=false;
+  function placeUnderHeader(){
+    const h=document.getElementById('siteHeader');
+    _modal.style.top=(h?Math.max(0,Math.round(h.getBoundingClientRect().bottom)):0)+'px';
+  }
+  function closeModal(fromHistory){
+    if(!_modal||!_modal.classList.contains('open')) return;
+    _modal.classList.remove('open'); document.documentElement.style.overflow='';
+    if(_pushed&&!fromHistory){ _pushed=false; history.back(); return; }
+    _pushed=false;
+    if(new URLSearchParams(location.search).has('project')){
+      const u=new URL(location.href); u.searchParams.delete('project'); history.replaceState(history.state,'',u.pathname+u.search+u.hash);
+    }
+  }
+  window.addEventListener('popstate',()=>{ if(_modal&&_modal.classList.contains('open')&&!new URLSearchParams(location.search).has('project')) closeModal(true); });
+  window.addEventListener('resize',()=>{ if(_modal&&_modal.classList.contains('open')) placeUnderHeader(); });
   function locateOnMap(id){
     closeModal();
     const m=_markers[id];
@@ -923,8 +941,14 @@
     if(!d) return;
     ensureModal();
     renderDeck(d,_slideCache[d.id]);
+    placeUnderHeader();
     _modal.classList.add('open');
-    document.body.style.overflow='hidden';
+    document.documentElement.style.overflow='hidden';
+    _panel.scrollTop=0;
+    if(new URLSearchParams(location.search).get('project')!==d.id){
+      const u=new URL(location.href); u.searchParams.set('project',d.id);
+      history.pushState({ghrProject:d.id},'',u.pathname+u.search+u.hash); _pushed=true;
+    }
     setTimeout(()=>{ const c=_panel.querySelector('[data-pm-close]'); if(c) c.focus(); },50);
     // Admin-managed slide content — only when the site is served with its API.
     if(window.GHR_CMS&&!_slideCache[d.id]){
