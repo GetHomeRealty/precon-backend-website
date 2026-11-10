@@ -147,6 +147,8 @@
         a.appendChild(el('p', 'story-text', r.text));
         grid.appendChild(a);
       });
+      var tsec = grid.closest('[data-cms="testimonials"]');
+      if(tsec) tsec.hidden = false;
     }
 
     var videos = C.videos || [];
