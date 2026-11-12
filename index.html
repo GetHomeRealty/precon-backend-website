@@ -308,7 +308,7 @@
   <div class="wrap">
     <div class="section-head" style="display:flex;justify-content:space-between;align-items:end;gap:1rem;flex-wrap:wrap;max-width:none">
       <div><p class="eyebrow">Handpicked</p><h2 class="h2">Featured Properties</h2>
-        <p class="lead" style="margin-top:.4rem">Live projects we're tracking across Hyderabad and Visakhapatnam &mdash; real towers, real renders. Tap any project for photos, full details, and a direct line to our team.</p></div>
+        <p class="lead" style="margin-top:.4rem">Live projects we're tracking across Hyderabad &mdash; real towers, real renders. Tap any project for photos, full details, and a direct line to our team.</p></div>
       <details class="explore-drop">
         <summary class="btn btn--ghost">Explore Listings
           <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
@@ -585,7 +585,9 @@ window.GHR_PAGE_INIT=function(){
 
   // featured projects (real towers with real images), collage layout
   const CMSF=window.GHR.featuredProjects;
-  const featIds=CMSF&&CMSF.length?CMSF.map(d=>d.id):['mk-one','hyd-gamya','mvv-grand','hyd-myhome-akrida','vaisakhi-construction','hyd-aparna-newlands'];
+  // Hyderabad only: admin picks and stand-ins from other cities are skipped
+  const FEAT_CITY='Hyderabad', inCity=d=>d&&d.city===FEAT_CITY;
+  const featIds=CMSF&&CMSF.length?CMSF.map(d=>d.id):['hyd-myhome-akrida','hyd-gamya','hyd-rajapushpa-pristinia','hyd-aparna-newlands','hyd-myhome-sayuk','hyd-western-springs'];
   const devById=Object.fromEntries(window.GHR.GHR_DEVELOPERS.concat(CMSF||[]).map(d=>[d.id,d]));
   const IMG=window.GHR.GHR_IMAGES||{};
   // photos stored on this site first (they can't break); builder-hosted links after
@@ -593,9 +595,9 @@ window.GHR_PAGE_INIT=function(){
   const FEAT_N=6;   // the collage is designed for six: one large card + five
   const local=id=>pics(id).some(u=>!/^https?:/.test(u));
   const used=new Set(), feat=[];
-  featIds.forEach(id=>{ const d=devById[id]; if(d&&!used.has(d.id)&&feat.length<FEAT_N){ feat.push(d); used.add(d.id); } });
+  featIds.forEach(id=>{ const d=devById[id]; if(inCity(d)&&!used.has(d.id)&&feat.length<FEAT_N){ feat.push(d); used.add(d.id); } });
   // spare projects with photos stored on this site: top up the six, and stand in for any pick whose photos all fail
-  const spares=window.GHR.GHR_DEVELOPERS.filter(d=>!used.has(d.id)&&local(d.id));
+  const spares=window.GHR.GHR_DEVELOPERS.filter(d=>inCity(d)&&!used.has(d.id)&&local(d.id));
   const nextSpare=()=>{ while(spares.length){ const d=spares.shift(); if(!used.has(d.id)){ used.add(d.id); return d; } } return null; };
   while(feat.length<FEAT_N){ const d=nextSpare(); if(!d) break; feat.push(d); }
   const cardHtml=(d,i)=>{
