@@ -104,7 +104,10 @@
       var lines = h.heading.split(/\r?\n/).map(function(s){ return s.trim(); }).filter(Boolean);
       title.textContent = '';
       lines.forEach(function(line, i){ title.appendChild(el('span', 'ln' + (lines.length===3 && i===1 ? ' outline' : ''), line)); });
-      title.setAttribute('aria-label', lines.join(' '));
+      // the cities the headline is about, for search engines / screen readers (shown visibly in the kicker)
+      var place = title.getAttribute('data-place'), last = title.lastElementChild;
+      if(place && last){ last.appendChild(el('span', 'sr-only', ' ' + place)); }
+      title.setAttribute('aria-label', lines.join(' ') + (place ? ' ' + place : ''));
     }
     setText('[data-cms="hero-lead"]', h.description);
     var cta = document.querySelector('[data-cms="hero-cta"]');
