@@ -59,10 +59,32 @@ export function suggestSeo(kind: SuggestKind, r: Record<string, any>): Suggestio
       const name = clean(r.name), city = clean(r.city), loc = clean(r.location);
       const dev = clean(r.developer) !== '—' ? clean(r.developer) : '';
       const named = city && !name.toLowerCase().includes(city.toLowerCase()) ? `${name} ${city}` : name;
+      // Facts worth searching for, only when they hold a real value (not "On request", "—").
+      const real = (v: unknown) => { const t = clean(v); return t && !/^(on request|—|-|n\/?a|tba|tbd)$/i.test(t) ? t : ''; };
+      const cfg = /\bBHK\b|villa|plot/i.test(real(r.bedrooms)) && real(r.bedrooms).length <= 16 ? real(r.bedrooms) : '';
+      const sizes = /\d/.test(real(r.unit_sizes)) ? real(r.unit_sizes) : '';
+      const price = /^(₹|rs|inr|\$|\d)/i.test(real(r.starting_price)) ? real(r.starting_price) : '';
+      const where = loc && city && !loc.toLowerCase().includes(city.toLowerCase()) ? `${loc}, ${city}` : loc || city;
+      const nameLoc = loc && !name.toLowerCase().includes(loc.toLowerCase()) ? `${name}, ${loc}` : name;
+      const nameLocCity = city && !nameLoc.toLowerCase().includes(city.toLowerCase()) ? `${nameLoc} ${city}` : nameLoc;
+      const homes = `${cfg ? `${cfg} ` : ''}${/villa/i.test(clean(r.property_type)) ? 'villas' : 'homes'}`;
       return {
-        seo_title: firstFit(TITLE_MAX, `${named} | Price, Floor Plans & Details`, `${named} | Price & Details`, `${named} | ${BRAND}`, named),
+        // Locality first: people search "<project> <area>" and "<BHK> in <area>".
+        seo_title: firstFit(TITLE_MAX,
+          cfg ? `${nameLocCity} | ${cfg} Price & Floor Plans` : '', cfg ? `${nameLoc} | ${cfg} Price & Floor Plans` : '',
+          `${nameLocCity} | Price & Floor Plans`, `${nameLoc} | Price & Floor Plans`,
+          `${named} | Price, Floor Plans & Details`, `${named} | Price & Details`, `${named} | ${BRAND}`, named),
         // Prefer the fullest sentence that fits, rather than cutting one off mid-way.
         meta_description: firstFit(DESC_MAX,
+          // no configuration, size or price on record: describe the project instead of listing empty facts
+          !(cfg || sizes || price) ? `${name}${dev ? ` by ${dev}` : ''}, a residential project${where ? ` in ${where}` : ''}. See prices, floor plans, amenities and site visits with ${BRAND}.` : '',
+          !(cfg || sizes || price) ? `${name}, a residential project${where ? ` in ${where}` : ''}. See prices, floor plans, amenities and site visits with ${BRAND}.` : '',
+          `${name}${dev ? ` by ${dev}` : ''}${where ? ` in ${where}` : ''}: ${homes}${sizes ? ` of ${sizes}` : ''}${price ? `, priced ${price}` : ''}. See floor plans, amenities and site visits with ${BRAND}.`,
+          `${name}${dev ? ` by ${dev}` : ''}${where ? ` in ${where}` : ''}: ${homes}${price ? `, priced ${price}` : ''}. See floor plans, amenities and site visits with ${BRAND}.`,
+          `${name}${where ? ` in ${where}` : ''}: ${homes}${sizes ? ` of ${sizes}` : ''}${price ? `, priced ${price}` : ''}. Floor plans, amenities and site visits with ${BRAND}.`,
+          price ? `${name}${where ? ` in ${where}` : ''}: ${homes} priced ${price}. Floor plans, amenities and site visits with ${BRAND}.` : '',
+          sizes ? `${name}${where ? ` in ${where}` : ''}: ${homes} of ${sizes}. Floor plans, amenities and site visits with ${BRAND}.` : '',
+          where ? `${name} in ${where}. See prices, floor plans, amenities and site visits with ${BRAND}.` : '',
           `Explore ${named}${dev ? ` by ${dev}` : ''}${loc ? ` in ${loc}` : ''}. View latest pricing, floor plans, amenities, location, availability and project details from ${BRAND}.`,
           `Explore ${named}${loc ? ` in ${loc}` : ''}. View latest pricing, floor plans, amenities, location, availability and project details from ${BRAND}.`,
           `Explore ${named}. View latest pricing, floor plans, amenities, location and project details from ${BRAND}.`,

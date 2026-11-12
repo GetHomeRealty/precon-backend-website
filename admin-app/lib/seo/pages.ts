@@ -419,8 +419,49 @@ export async function staticPage(req: Request, name: string) {
     const crumbs = [home(ctx), { name: PAGE_NAMES[name] || d.h1 || d.title }];
     meta.jsonld = [webPage(ctx, { url: canonical, name: meta.title, description: meta.description }), crumbsLd(ctx, meta, crumbs),
       ...(name === 'contact.html' ? [brokerage(ctx, await publishedAreas())] : [])];
+    const city = CITY_PAGES[name];
+    if (city) {
+      const dir = await cityDirectory(ctx, city, canonical);
+      if (dir) {
+        meta.jsonld.push(dir.jsonld);
+        return htmlResponse(injectHead(html, headHtml(ctx, meta)).replace(/(<section[^>]*\bid="projects"[\s\S]*?<\/section>)/, (s) => `${s}\n${dir.html}`));
+      }
+    }
   }
   return htmlResponse(injectHead(html, headHtml(ctx, meta)));
+}
+
+/** Map pages whose project directory is drawn by JS; the server adds plain links to every project page. */
+const CITY_PAGES: Record<string, string> = { 'hyderabad.html': 'Hyderabad', 'visakhapatnam.html': 'Visakhapatnam' };
+
+/**
+ * Crawlable index of a city's published project pages, grouped by locality, plus an
+ * ItemList for search engines. The interactive directory above it is client-side only,
+ * so without this the project pages are reachable only through the sitemap.
+ */
+async function cityDirectory(ctx: SeoContext, city: string, canonical: string) {
+  const rows = await q(`select slug, name, location from projects where is_published and lower(coalesce(city,'')) = lower($1)
+    order by lower(coalesce(location,'')), lower(name)`, [city]);
+  if (!rows.length) return null;
+  const groups = new Map<string, Row[]>();
+  for (const r of rows) {
+    const k = String(r.location || '').trim() || 'Other localities';
+    groups.set(k, [...(groups.get(k) || []), r]);
+  }
+  const loc = await locationFor(city);
+  const html = `<section class="section section--tight" id="all-projects"><div class="wrap">
+  <details class="proj-index">
+    <summary class="h3">All ${rows.length} project pages in ${esc(city)}, by locality</summary>
+    <div class="proj-index-body">${[...groups].map(([area, list]) => `
+      <div class="proj-index-group"><h3>${esc(area)}</h3>${chipLinks(list.map((r) => ({ href: `/projects/${r.slug}`, label: r.name })))}</div>`).join('')}
+    </div>
+    ${loc ? `<p style="margin:1.2rem 0 0"><a href="/real-estate/${esc(loc.slug)}">Real estate guide to ${esc(loc.name)} →</a></p>` : ''}
+  </details>
+</div></section>`;
+  const jsonld = { '@context': 'https://schema.org', '@type': 'ItemList', '@id': `${canonical}#projects`, name: `Residential projects in ${city}`,
+    numberOfItems: rows.length,
+    itemListElement: rows.map((r, i) => ({ '@type': 'ListItem', position: i + 1, url: `${ctx.base}/projects/${r.slug}`, name: r.name })) };
+  return { html, jsonld };
 }
 
 
