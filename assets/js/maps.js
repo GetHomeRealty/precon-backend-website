@@ -101,67 +101,20 @@
   }
 
   // --- Representative imagery -------------------------------------------------
-  // Real builder photos always win. When a project has no official image, we show
-  // a relevant, attractive photo (apartment tower / villa / plot, coastal for Vizag)
-  // layered OVER a branded gradient — so if the photo ever fails to load, the
-  // gradient shows through and a broken-image icon is impossible.
-  const STOCK_GRAD='linear-gradient(135deg,#0e2a3a,#1c4257 55%,#C8102E)';
-  const STOCK={
-    apartment:['1545324418-cc1a3fa10c00','1560518883-ce09059eeffa','1486406146926-c627a92ad1ab','1512917774080-9991f1c4c750','1600585154340-be6161a56a0c','1494526585095-c41746248156','1522708323590-d24dbb6b0267','1493809842364-78817add7ffb','1460317442991-0ec209397118','1567496898669-ee935f5f647a','1516156008625-3a9d6067fab5','1449844908441-8829872d2607'],
-    villa:['1613490493576-7fde63acd811','1564013799919-ab600027ffc6','1600596542815-ffad4c1539a9','1600607687939-ce8a6c25118c','1568605114967-8130f3a36994','1600585154526-990dced4db0d','1580587771525-78b9dba3b914','1576941089067-2de3c901e126'],
-    plot:['1500382017468-9049fed747ef','1416879595882-3373a0480b5b','1501594907352-04cda38ebc29','1470770841072-f978cf4d019e']
-  };
-  function uPhoto(id){return 'https://images.unsplash.com/photo-'+id+'?auto=format&fit=crop&w=900&q=72';}
+  // Gallery rule: a project shows only its OWN photos. With none, it gets its branded
+  // gradient (never a stock or borrowed photo). The gradient is also the layer under a real
+  // photo, so a builder image that fails to load leaves the gradient, not a broken icon.
   function strHash(s){let h=0;for(let i=0;i<s.length;i++){h=(h*31+s.charCodeAt(i))>>>0;}return h;}
   function realImgs(d){return ((window.GHR.GHR_IMAGES||{})[d.id])||((window.GHR.GHR_DETAILS||{})[d.id]||{}).images||[];}
-
-  // Infer the visual category (villa / plot / apartment) for representative imagery.
-  function kindOf(d){
-    if(d.kind && STOCK[d.kind.toLowerCase()]) return d.kind.toLowerCase();
-    const t=((window.GHR.GHR_DETAILS||{})[d.id]||{}).tagline||'';
-    const s=((d.name||'')+' '+(d.config||'')+' '+t).toLowerCase();
-    if(/\b(plot|plotted|land|venture)\b/.test(s)) return 'plot';
-    if(/\b(villa|villas|bungalow|triplex|independent)\b/.test(s)) return 'villa';
-    return 'apartment';
-  }
-  // Collision-free stock assignment: every project WITHOUT a real photo gets a DISTINCT
-  // image from its category pool, cycled in listing order — so no two adjacent cards match
-  // and any repeat (only if a pool is exhausted) is spread as far apart as possible.
-  let _stockAssign=null;
-  function buildStockAssign(){
-    const map={}, ctr={};   // counter per city+category, so each CITY page stays distinct
-    (window.GHR.GHR_DEVELOPERS||[]).forEach(d=>{
-      if(realImgs(d).length) return;
-      const k=STOCK[kindOf(d)]?kindOf(d):'apartment';
-      const key=(d.city||'')+'|'+k; ctr[key]=ctr[key]||0;
-      map[d.id]=uPhoto(STOCK[k][ctr[key]++ % STOCK[k].length]);
-    });
-    return map;
-  }
-  function stockForDev(d){
-    if(!_stockAssign) _stockAssign=buildStockAssign();
-    return _stockAssign[d.id] || uPhoto(STOCK.apartment[strHash(d.id)%STOCK.apartment.length]);
-  }
-  // Per-project fallback gradient (varied hue) — shows only if a photo fails to load,
-  // so even fallback cards remain visually distinct rather than all identical.
+  // Per-project gradient (varied hue), so photo-less cards stay distinct rather than identical.
   function gradFor(d){
     const h=strHash(d.id)%360;
     return 'linear-gradient(135deg,hsl('+((h+195)%360)+',44%,15%),hsl('+((h+220)%360)+',40%,27%) 55%,#C8102E)';
   }
-  // First real image if present, else a representative photo (never returns '').
-  function imgForDev(d){ const r=realImgs(d); return (r&&r[0])?r[0]:stockForDev(d); }
   function isRealImg(d){ const r=realImgs(d); return !!(r&&r[0]); }
-  // Full CSS background-image value: representative photos get the gradient fallback layer.
+  // Full CSS background-image value: the project's first photo over its gradient, or the gradient alone.
   function bgForDev(d){
-    return isRealImg(d) ? "url('"+imgForDev(d)+"')" : "url('"+stockForDev(d)+"'),"+gradFor(d);
-  }
-  // Gallery: each project's own real images (0–3). Falls back to one representative slide.
-  function gallerySlides(d){
-    const real=realImgs(d);
-    const seen=new Set(); const out=[];
-    for(const u of real){ if(u && !seen.has(u)){ seen.add(u); out.push({u,stock:false}); if(out.length===3) break; } }
-    if(!out.length) out.push({u:stockForDev(d),stock:true});
-    return out;
+    return isRealImg(d) ? "url('"+realImgs(d)[0]+"'),"+gradFor(d) : gradFor(d);
   }
   function devPopupHtml(d){
     const p=progress(d), ty=typeOf(d), cfg=configOf(d);
@@ -541,7 +494,7 @@
 
   // ---- slides ----
   function slideOverview(S){
-    const d=S.d, stock=!S.images.length, hero=stock?stockForDev(d):S.images[0];
+    const d=S.d, noimg=!S.images.length, hero=S.images[0];
     const tags=[];
     if(S.status!==NA) tags.push(`<span class="pm-tag">${esc(S.status)}</span>`);
     if(S.completion!==NA) tags.push(`<span class="pm-tag">${/^(completed|ready)/i.test(S.completion)?'':'Possession '}${esc(S.completion)}</span>`);
@@ -550,7 +503,8 @@
     const thumbs=S.images.length>1?`<div class="pm-thumbs" aria-label="Photos">${S.images.map((u,i)=>
       `<button type="button" class="pm-thumb${i?'':' is-on'}" data-thumb="${esc(mediaUrl(u))}" aria-label="Show photo ${i+1}"><img src="${esc(mediaUrl(u))}" alt="" loading="lazy"></button>`).join('')}</div>`:'';
     return `<div class="pm-gallery pm-gallery--deck">
-        <img class="pm-heroimg${stock?' pm-heroimg--stock':''}" data-hero src="${esc(mediaUrl(hero))}" alt="${esc(d.name)}" fetchpriority="high" style="background:${stock?gradFor(d):'#0b0a09'}">
+        ${noimg ? `<div class="pm-heroimg" aria-hidden="true" style="background:${gradFor(d)}"></div>`
+          : `<img class="pm-heroimg" data-hero src="${esc(mediaUrl(hero))}" alt="${esc(d.name)}" fetchpriority="high" style="background:${gradFor(d)}">`}
         <div class="pm-shade"></div>
         <div class="pm-hero-in">
           ${S.developer?`<div class="pm-kicker">${esc(S.developer)}</div>`:''}

@@ -506,14 +506,19 @@
           close=document.getElementById('waClose');
     const KEY='gh_wa_closed';
     let closed=false; try{closed=localStorage.getItem(KEY)==='1';}catch(e){}
-    function setOpen(open){
+    function show(open){
       w.classList.toggle('is-open',open);
       launch.setAttribute('aria-expanded',open?'true':'false');
+    }
+    function setOpen(open){
+      show(open);
       try{localStorage.setItem(KEY,open?'0':'1');}catch(e){}
     }
-    // initially expanded unless the user closed it before
+    // initially expanded unless the user closed it before — but never on phones, where the
+    // card would cover most of the screen (the round button stays; the choice isn't saved)
+    const phone=window.matchMedia('(max-width: 767px)').matches;
     setTimeout(()=>w.classList.add('ready'),150);
-    setOpen(!closed);
+    show(!closed&&!phone);
     launch.addEventListener('click',()=>setOpen(!w.classList.contains('is-open')));
     close.addEventListener('click',()=>setOpen(false));
   }
