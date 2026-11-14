@@ -7,7 +7,6 @@
 <meta name="description" content="Call, email or visit Get Home Realty. Share your buying, selling, leasing or investment goals in Hyderabad or Vizag and we reply within one business day.">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body data-page="contact.html">
@@ -28,7 +27,7 @@
     <a class="cq" id="qCall" href="#"><span class="cq-ic" data-ic="phone"></span><b>Call us</b><span class="cq-sub" id="qCallTxt">&nbsp;</span><span class="cq-go">Call now &rarr;</span></a>
     <a class="cq" id="qWa" href="#" target="_blank" rel="noopener"><span class="cq-ic" data-ic="whatsapp"></span><b>WhatsApp</b><span class="cq-sub">Quick replies, any time</span><span class="cq-go">Start chat &rarr;</span></a>
     <a class="cq" id="qMail" href="#"><span class="cq-ic" data-ic="mail"></span><b>Email</b><span class="cq-sub" id="qMailTxt">&nbsp;</span><span class="cq-go">Write to us &rarr;</span></a>
-    <a class="cq" id="qDir" href="#map" ><span class="cq-ic" data-ic="pin"></span><b>Visit the office</b><span class="cq-sub">Serilingampally, Hyderabad</span><span class="cq-go">Get directions &rarr;</span></a>
+    <a class="cq" id="qDir" href="#map" ><span class="cq-ic" data-ic="pin"></span><b>Visit the office</b><span class="cq-sub">Lingampalli, Hyderabad</span><span class="cq-go">Get directions &rarr;</span></a>
   </div>
 </div>
 
@@ -108,7 +107,6 @@
 </div></div></section>
 
 <div data-gh-footer></div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="assets/js/data.js"></script>
 <script src="/api/public/content.js"></script>
 <script src="assets/js/cms.js"></script>
@@ -130,20 +128,19 @@ window.GHR_PAGE_INIT=function(){
     document.getElementById('cOfficeAddr').textContent=C.addr;
     if(C.hours){ document.getElementById('cHours').textContent=C.hours; document.getElementById('cOfficeHrs').textContent=C.hours; }
   }
-  const DIR='https://www.google.com/maps/dir/?api=1&destination=17.4730013,78.3280442';
+  // Office: located by Google Maps from its address (no hand-entered coordinates to go stale)
+  const OFFICE_Q='Doyens Lakeside Township, Lingampalli, Serilingampally, Hyderabad, Telangana 500019';
+  const DIR='https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(OFFICE_Q);
   document.getElementById('cDirections').href=DIR;
   document.getElementById('qDir').href=DIR; document.getElementById('qDir').target='_blank'; document.getElementById('qDir').rel='noopener';
   const S=window.GHR.SOCIAL;
   const SOC=(window.GHR_CONFIG&&window.GHR_CONFIG.social)||{};
   document.getElementById('cSocial').innerHTML=['fb','ig','in','yt','x'].filter(k=>SOC[k])
     .map(k=>`<a href="${SOC[k]}" target="_blank" rel="noopener" aria-label="${k}">${S[k]}</a>`).join('');
-  if(window.L){
-    const lat=17.4730013, lng=78.3280442;   // office — Louis Philippe building, Old Mumbai Highway (pin supplied by Get Home Realty)
-    const map=L.map('map-office',{scrollWheelZoom:false}).setView([lat,lng],16);
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',{attribution:'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors',maxZoom:19}).addTo(map);
-    // same GHR umbrella pin as the project maps (.gh-mk in styles.css)
-    L.marker([lat,lng],{icon:L.divIcon({className:'gh-marker',html:'<div class="gh-mk"><span class="gh-mk-head"><img src="/assets/img/ghr-icon-192.png" alt="" draggable="false"></span></div>',iconSize:[40,50],iconAnchor:[20,49],popupAnchor:[0,-46]})}).addTo(map)
-      .bindPopup('<b>Get Home Realty</b><br>4th Floor, 356 Old Mumbai Highway, Serilingampally<br><a href="https://www.google.com/maps/dir/?api=1&destination='+lat+','+lng+'" target="_blank" rel="noopener">Get directions in Google Maps</a>');
+  // Office map: Google Maps places the pin from the address
+  const mo=document.getElementById('map-office');
+  if(mo){
+    mo.innerHTML='<iframe title="Get Home Realty office — Doyens Lakeside Township, Lingampalli" src="https://www.google.com/maps?q='+encodeURIComponent(OFFICE_Q)+'&z=16&output=embed" style="border:0;width:100%;height:100%;display:block" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>';
   }
   window.dispatchEvent(new Event('scroll'));
 };

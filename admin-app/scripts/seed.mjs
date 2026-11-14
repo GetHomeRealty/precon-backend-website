@@ -188,7 +188,7 @@ await db.query(
   `insert into contact_details (id, canada_phone, india_phone, whatsapp, email, offices, business_hours)
    values (1, '', '+91 99632 06933', '919963206933', 'india@gethomerealty.ca', $1::jsonb, 'Open 24/7')
    on conflict do nothing`,
-  [JSON.stringify([{ label: 'Hyderabad', address: 'Louis Philippe Serilingampally, 4th Floor, 356 Old Mumbai Highway, Serilingampally (M), Telangana' }])]);
+  [JSON.stringify([{ label: 'Hyderabad', address: '4th Floor, Plot no 49, Doyens Lakeside Township, Lingampalli, Serilingampally, Serilingampally, K.V.Rangareddy- 500019, Telangana, India' }])]);
 
 const social = {
   instagram: 'https://www.instagram.com/get_home_realty_india/',

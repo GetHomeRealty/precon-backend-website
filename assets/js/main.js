@@ -11,7 +11,7 @@
     phoneHref:'tel:+919963206933',
     email:'india@gethomerealty.ca',
     whatsapp:'https://wa.me/919963206933',
-    addr:'Louis Philippe Serilingampally, 4th Floor, 356 Old Mumbai Highway, Serilingampally (M), Telangana',
+    addr:'4th Floor, Plot no 49, Doyens Lakeside Township, Lingampalli, Serilingampally, Serilingampally, K.V.Rangareddy- 500019, Telangana, India',
     hours:'Open 24/7',
     // Where enquiry forms are saved (the admin app). Normally the site is served BY the
     // admin app, so the same-origin '/api/public/leads' is used. If these pages are ever
