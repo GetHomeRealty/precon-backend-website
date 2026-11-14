@@ -24,6 +24,9 @@ export function organization(ctx: SeoContext) {
     name: s.site_name || 'Get Home Realty', url: `${ctx.base}/`,
     // Google prefers a square logo (≥112px) for the organisation
     logo: ctx.abs('/assets/img/ghr-icon-512.png'),
+    // A Canadian company (head office in Mississauga, Ontario) working in India
+    description: 'Canadian real estate brokerage headquartered in Mississauga, Ontario, serving home buyers, sellers and investors in Hyderabad and Visakhapatnam, India.',
+    location: { '@type': 'Place', address: { '@type': 'PostalAddress', addressLocality: 'Mississauga', addressRegion: 'ON', addressCountry: 'CA' } },
     email: c.email || undefined,
     sameAs: [so.facebook, so.instagram, so.youtube, so.linkedin, so.x].filter(Boolean),
     contactPoint: phones.map((telephone: string) => ({ '@type': 'ContactPoint', telephone, contactType: 'sales', email: c.email || undefined })),

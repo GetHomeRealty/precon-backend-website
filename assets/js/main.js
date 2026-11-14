@@ -56,7 +56,7 @@
   const BRAND = `
     <a class="brand" href="index.html" aria-label="Get Home Realty — A Tradition of Trust">
       <img class="brand-logo brand-logo--header" src="assets/img/ghr-logo-header.png" alt="Get Home Realty — A Tradition of Trust" width="1433" height="440">
-      <img class="brand-logo brand-logo--footer" src="assets/img/ghr-logo-footer.png" alt="Get Home Realty — A Tradition of Trust" width="923" height="297">
+      <img class="brand-logo brand-logo--footer" src="assets/img/ghr-logo-footer.png" alt="Get Home Realty — A Tradition of Trust" width="1200" height="389">
     </a>`;
 
   /* Footer social icons: one <a> per configured profile, in this order. */
@@ -82,7 +82,7 @@
 
     return `
     <div class="topbar"><div class="wrap">
-      <div class="topbar-tag">${CONFIG.tag||'Canada · Hyderabad · Visakhapatnam'}</div>
+      <div class="topbar-tag">${CONFIG.tag||'Canadian Brokerage · Hyderabad · Visakhapatnam'}</div>
       <div class="topbar-right">
         <a href="${CONFIG.tbPhoneHref||CONFIG.phoneHref}" aria-label="Call us">${ICON.phone}<span class="tb-text">${CONFIG.tbPhone||CONFIG.phone}</span></a>
         <a href="${CONFIG.tbWhatsapp||CONFIG.whatsapp}" target="_blank" rel="noopener" aria-label="Message us on WhatsApp">${ICON.whatsapp}<span class="tb-text">WhatsApp</span></a>
@@ -130,7 +130,7 @@
       <div class="footer-top">
         <div class="footer-about">
           ${BRAND}
-          <p>A premium real estate brokerage helping buyers, sellers, investors, landlords, tenants and pre-construction clients across Canada, Hyderabad and Visakhapatnam.</p>
+          <p>A Canadian real estate brokerage from Mississauga, Ontario, helping buyers, sellers, investors, landlords and tenants in Hyderabad and Visakhapatnam.</p>
           <div class="footer-social" aria-label="Social media">
             ${socialLinks()}
           </div>

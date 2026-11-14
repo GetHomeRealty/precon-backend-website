@@ -124,7 +124,7 @@ export function suggestSeo(kind: SuggestKind, r: Record<string, any>): Suggestio
     default: {
       return {
         seo_title: firstFit(TITLE_MAX, `${BRAND} | Real Estate in Hyderabad & Visakhapatnam`, BRAND),
-        meta_description: clip(`Explore trusted real estate opportunities, projects, properties and investment options with ${BRAND} in Hyderabad, Visakhapatnam and Canada.`, DESC_MAX),
+        meta_description: clip(`${BRAND} is a Canadian real estate brokerage from Mississauga, Ontario, helping clients buy, sell and invest in homes in Hyderabad and Visakhapatnam.`, DESC_MAX),
         slug: '',
         image_alt_text: `${BRAND} — find your dream home`,
       };
