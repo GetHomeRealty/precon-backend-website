@@ -611,7 +611,7 @@ window.GHR_PAGE_INIT=function(){
       <div class="feat-meta">
         <span class="feat-city">${I.pin}${d.area}, ${d.city}</span>
         <h3 class="feat-name">${d.name}</h3>
-        <span class="feat-dev">${d.developer}${d.config?` · ${d.config}`:''}${d.sizes&&d.sizes!=='—'?` · ${d.sizes}`:''}</span>
+        <span class="feat-dev">${d.developer}${d.config?` · ${d.config}`:''}${d.sizes&&d.sizes!=='—'&&!/on request/i.test(d.sizes)?` · ${d.sizes}`:''}</span>
         <span class="feat-go">View details ${I.arrow||'→'}</span>
       </div>
     </a>`;

@@ -263,7 +263,9 @@ ul{margin:0;padding:0;list-style:none}
 .prop:hover .prop-media-bg{transform:scale(1.06)}
 .prop-badge,.prop-status{z-index:2}
 /* featured-projects collage (homepage) */
-.feat-collage{display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:150px;gap:12px}
+.feat-collage{display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:185px;gap:12px}
+/* small cards: keep the details on one line so nothing is cut off at the card's edge */
+#featuredGrid .feat-card:not(.feat-card--lead) .feat-dev{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .feat-card{position:relative;display:block;border-radius:var(--radius);overflow:hidden;text-decoration:none;color:#fff;box-shadow:var(--shadow-sm);background:#0e2a3a}
 .feat-card--lead{grid-row:span 2;grid-column:span 1}
 @media(min-width:880px){.feat-card--lead{grid-column:span 2}}
