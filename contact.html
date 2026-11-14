@@ -117,6 +117,16 @@ window.GHR_PAGE_INIT=function(){
   document.querySelectorAll('[data-ic]').forEach(e=>e.innerHTML=I[e.dataset.ic]);
   if(C){
     const ph=document.getElementById('cPhone'); ph.textContent=C.phone; ph.href='tel:'+C.phone.replace(/\s/g,'');
+    if(C.phone2){
+      // second office number: under the main one, and on the office card with the address
+      const a=document.createElement('a'); a.href='tel:'+C.phone2.replace(/\s/g,''); a.textContent=C.phone2; a.style.display='block';
+      ph.style.display='block'; ph.after(a);
+      const op=document.createElement('p'); op.className='cp-office-hrs'; op.innerHTML='<span>'+I.phone+'</span>';
+      const p1=document.createElement('a'); p1.href='tel:'+C.phone.replace(/\s/g,''); p1.textContent=C.phone;
+      const p2=document.createElement('a'); p2.href='tel:'+C.phone2.replace(/\s/g,''); p2.textContent=C.phone2;
+      op.append(p1, document.createTextNode('  ·  '), p2);
+      document.getElementById('cOfficeAddr').after(op);
+    }
     const ml=document.getElementById('cMail'); ml.textContent=C.email; ml.href='mailto:'+C.email;
     document.getElementById('cAddr').textContent=C.addr;
     document.getElementById('cWa').href=C.whatsapp;

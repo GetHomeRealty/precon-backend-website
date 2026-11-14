@@ -575,6 +575,7 @@ window.GHR_PAGE_INIT=function(){
       C.email&&[I.mail,`<a href="mailto:${C.email}">${C.email}</a>`],
       C.addr&&[I.pin,`<span>${C.addr}</span>`],
       C.phone&&[I.phone,`<a href="${C.phoneHref||'tel:'+C.phone}">${C.phone}</a>`],
+      C.phone2&&[I.phone,`<a href="tel:${C.phone2.replace(/\s/g,'')}">${C.phone2}</a>`],
       C.whatsapp&&[I.whatsapp,`<a href="${C.whatsapp}" target="_blank" rel="noopener">Chat on WhatsApp</a>`],
     ].filter(Boolean);
     list.innerHTML=rows.map(r=>`<li><span class="gt-ic">${r[0]||''}</span>${r[1]}</li>`).join('');

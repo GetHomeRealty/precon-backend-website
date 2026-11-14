@@ -9,6 +9,7 @@
   const CONFIG = {
     phone:'+91 99632 06933',
     phoneHref:'tel:+919963206933',
+    phone2:'+91 90328 27722',          // second office number, shown with the address
     email:'india@gethomerealty.ca',
     whatsapp:'https://wa.me/919963206933',
     addr:'4th Floor, Plot no 49, Doyens Lakeside Township, Lingampalli, Serilingampally, Serilingampally, K.V.Rangareddy- 500019, Telangana, India',
@@ -147,6 +148,7 @@
         <div class="footer-col"><h4>Get in Touch</h4><ul class="footer-contact">
           <li>${ICON.pin}<span>${CONFIG.addr}</span></li>
           <li>${ICON.phone}<a href="${CONFIG.phoneHref}">${CONFIG.phone}</a></li>
+          ${CONFIG.phone2?`<li>${ICON.phone}<a href="tel:${CONFIG.phone2.replace(/\s/g,'')}">${CONFIG.phone2}</a></li>`:''}
           <li>${ICON.mail}<a href="mailto:${CONFIG.email}">${CONFIG.email}</a></li>
           <li>${ICON.clock}<span>${CONFIG.hours}</span></li>
         </ul></div>
