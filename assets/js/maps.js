@@ -828,8 +828,9 @@
     panel.querySelectorAll('[data-go-label]').forEach(b=>b.addEventListener('click',()=>{
       const j=_deck.slides.findIndex(s=>s.label===b.dataset.goLabel); if(j>=0) goSlide(j); }));
     panel.querySelectorAll('[data-thumb]').forEach(t=>t.addEventListener('click',()=>{
-      const h=panel.querySelector('[data-hero]'); h.src=t.dataset.thumb; h.classList.remove('pm-heroimg--stock');
+      const h=panel.querySelector('[data-hero]'); if(!h) return; h.src=t.dataset.thumb;
       panel.querySelectorAll('[data-thumb]').forEach(x=>x.classList.toggle('is-on',x===t)); }));
+    wirePhotoFailures(panel);
     panel.querySelectorAll('[data-zoom]').forEach(b=>b.addEventListener('click',()=>openZoom(b.dataset.zoom,b.dataset.zoomAlt)));
     const cfg=panel.querySelector('[data-cfg]'), wa=panel.querySelector('[data-wa]');
     if(cfg) cfg.addEventListener('change',()=>applyBhk(cfg.value));
@@ -842,6 +843,30 @@
       ok=e.touches.length===1&&!e.target.closest('.leaflet-container,.pm-tablewrap,.pm-thumbs,select'); },{passive:true});
     deck.addEventListener('touchend',e=>{ if(!ok) return; const t=e.changedTouches[0], dx=t.clientX-sx, dy=t.clientY-sy;
       if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.5) goSlide(_deck.i+(dx<0?1:-1)); },{passive:true});
+  }
+
+  // Photos hotlinked from builder sites can disappear. Never show a broken-image icon:
+  // a dead thumbnail is dropped, the main photo moves on to the next working one (or leaves
+  // the project's gradient), and a dead plan / amenity / master-plan image is hidden.
+  function wirePhotoFailures(panel){
+    const onFail=(im,fn)=>{ if(im.complete&&im.getAttribute('src')&&im.naturalWidth===0) fn(); else im.addEventListener('error',fn,{once:true}); };
+    const dead=new Set();
+    const hero=panel.querySelector('[data-hero]');
+    const thumbsOk=()=>[...panel.querySelectorAll('[data-thumb]')].map(t=>t.dataset.thumb).filter(u=>!dead.has(u));
+    const tidyStrip=()=>{ const strip=panel.querySelector('.pm-thumbs'); if(strip&&strip.querySelectorAll('[data-thumb]').length<2) strip.remove(); };
+    panel.querySelectorAll('[data-thumb]').forEach(t=>{ const im=t.querySelector('img'); if(im) onFail(im,()=>{ dead.add(t.dataset.thumb); t.remove(); tidyStrip(); }); });
+    if(hero){
+      const heroFail=()=>{
+        dead.add(hero.getAttribute('src'));
+        const next=thumbsOk().find(u=>u!==hero.getAttribute('src'));
+        if(next){ hero.src=next; panel.querySelectorAll('[data-thumb]').forEach(x=>x.classList.toggle('is-on',x.dataset.thumb===next)); }
+        else { const g=document.createElement('div'); g.className='pm-heroimg'; g.setAttribute('aria-hidden','true'); g.style.background=hero.style.background; hero.replaceWith(g); }
+      };
+      hero.addEventListener('error',heroFail);
+      if(hero.complete&&hero.naturalWidth===0) heroFail();
+    }
+    panel.querySelectorAll('.pm-fp-img img, .pm-amimg img, .pm-master img').forEach(im=>onFail(im,()=>{
+      const box=im.closest('.pm-fp-img, .pm-amimg, .pm-master'); if(box) box.style.display='none'; }));
   }
 
   function renderDeck(d,api,keepLabel){
