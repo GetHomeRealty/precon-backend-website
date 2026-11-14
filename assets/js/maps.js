@@ -139,6 +139,15 @@
   function featCells(items){
     return items.map(f=>`<div class="dv-feat">${f[2]||''}<div><span>${f[0]}</span><b>${f[1]}</b></div></div>`).join('');
   }
+  // Card photos load only as they near the screen (the directory has 50+ cards, and some
+  // builder-hosted renders are several MB); until then the card shows its gradient.
+  function lazyBackgrounds(root){
+    const els=[...root.querySelectorAll('[data-bg]')];
+    const show=el=>{ el.style.backgroundImage=el.dataset.bg; el.removeAttribute('data-bg'); };
+    if(!('IntersectionObserver' in window)){ els.forEach(show); return; }
+    const io=new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting){ show(e.target); io.unobserve(e.target); } }),{rootMargin:'400px 0px'});
+    els.forEach(el=>io.observe(el));
+  }
   function devCard(d){
     // a short info line only — the full detail lives in the modal
     const st=progress(d).status;
@@ -146,7 +155,7 @@
     const bits=[configOf(d),builtUp(d)].filter(v=>v&&v!==NA);
     return `<div class="dv" data-id="${d.id}" data-area="${d.area}" data-band="${rateBand(d)}">
       <div class="dv-img">
-        <div class="dv-img-bg" style="background-image:${bgForDev(d)}"></div>
+        <div class="dv-img-bg" style="background-image:${gradFor(d)}"${isRealImg(d)?` data-bg="${bgForDev(d).replace(/"/g,'&quot;')}"`:''}></div>
         ${d.config?`<span class="dv-config">${d.config}</span>`:''}
         ${st!==NA?`<span class="dv-status">${st}</span>`:''}
       </div>
@@ -965,6 +974,7 @@
 
     if(devList){
       devList.innerHTML=devs.map(devCard).join('');
+      lazyBackgrounds(devList);
       devList.querySelectorAll('.dv').forEach(card=>{
         card.addEventListener('click',e=>{
           if(e.target.closest('a'))return;

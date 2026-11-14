@@ -55,8 +55,8 @@
 
   const BRAND = `
     <a class="brand" href="index.html" aria-label="Get Home Realty — A Tradition of Trust">
-      <img class="brand-logo brand-logo--header" src="assets/img/ghr-logo-header.png" alt="Get Home Realty — A Tradition of Trust" width="1433" height="440">
-      <img class="brand-logo brand-logo--footer" src="assets/img/ghr-logo-footer.png" alt="Get Home Realty — A Tradition of Trust" width="1200" height="389">
+      <img class="brand-logo brand-logo--header" src="assets/img/ghr-logo-header.webp" alt="Get Home Realty — A Tradition of Trust" width="1000" height="307">
+      <img class="brand-logo brand-logo--footer" src="assets/img/ghr-logo-footer.webp" alt="Get Home Realty — A Tradition of Trust" width="800" height="259" loading="lazy" decoding="async">
     </a>`;
 
   /* Footer social icons: one <a> per configured profile, in this order. */
@@ -115,8 +115,10 @@
   }
 
   function buildMobileLinks(active){
-    // Flat list of the primary navigation links (Services is a single link on mobile).
-    return NAV.map(n=>`<a href="${n.href}" class="m-link${n.href===active?' active':''}">${n.label}</a>`).join('');
+    // The primary links; a sub-menu (Services → Hyderabad, Visakhapatnam) is listed right under its
+    // parent, indented — phones have no hover, so a hidden dropdown would leave those pages unreachable.
+    return NAV.map(n=>`<a href="${n.href}" class="m-link${n.href===active?' active':''}">${n.label}</a>`+
+      (n.sub||[]).map(s=>`<a href="${s.href}" class="m-link m-sub${s.href===active?' active':''}">${s.label}</a>`).join('')).join('');
   }
 
   /* ---------------- FOOTER ---------------- */

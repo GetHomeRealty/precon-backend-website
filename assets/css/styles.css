@@ -46,6 +46,22 @@ body{
 }
 /* the header placeholder must not box in the sticky header — it sticks to the page instead */
 [data-gh-header]{display:contents}
+/* Until main.js injects the header, hold its exact height (top bar + bar + 1px border) so the
+   page doesn't jump down when it appears (that jump was the pages' layout shift, CLS up to 0.75). */
+[data-gh-header]:empty{display:block;height:139px}
+@media(max-width:860px){[data-gh-header]:empty{height:123px}}
+@media(max-width:560px){[data-gh-header]:empty{height:133px}}
+@media(min-width:1121px){[data-gh-header]:empty{height:114px}}
+@media(min-width:1200px){[data-gh-header]:empty{height:116px}}
+/* Services page: the service cards are drawn by script — hold their space so the sections below don't jump */
+#svcGrid:empty{min-height:950px}
+@media(max-width:860px){#svcGrid:empty{min-height:1240px}}
+@media(max-width:560px){#svcGrid:empty{min-height:346px}}
+/* City pages: same for the "How we help" cards above the map */
+#hydSvc:empty,#vskpSvc:empty{min-height:800px}
+@media(max-width:1120px){#hydSvc:empty,#vskpSvc:empty{min-height:880px}}
+@media(max-width:860px){#hydSvc:empty,#vskpSvc:empty{min-height:1220px}}
+@media(max-width:560px){#hydSvc:empty,#vskpSvc:empty{min-height:361px}}
 img{max-width:100%;display:block}
 a{color:inherit;text-decoration:none}
 button{font-family:inherit;cursor:pointer}
@@ -495,7 +511,10 @@ ul{margin:0;padding:0;list-style:none}
 
 /* ---------- whatsapp / floating ---------- */
 /* ---------- WhatsApp chat widget ---------- */
-.wa-widget{position:fixed;right:20px;bottom:20px;z-index:950;display:flex;flex-direction:column;align-items:flex-end;gap:14px}
+.wa-widget{position:fixed;right:20px;bottom:20px;z-index:950;display:flex;flex-direction:column;align-items:flex-end;gap:14px;
+  /* the box spans the (hidden) chat card — let taps pass through it; only the button and the open card take taps */
+  pointer-events:none}
+.wa-widget .wa-launch{pointer-events:auto}
 .wa-launch{width:60px;height:60px;border-radius:50%;background:#25D366;border:none;cursor:pointer;display:grid;place-items:center;box-shadow:0 8px 24px rgba(0,0,0,.25);transition:transform .2s, box-shadow .2s}
 .wa-launch:hover{transform:scale(1.07);box-shadow:0 10px 28px rgba(0,0,0,.3)}
 .wa-launch svg{width:32px;height:32px;color:#fff}
@@ -1123,6 +1142,12 @@ body.nav-open{position:fixed;left:0;right:0;width:100%;overflow:hidden}
   color:var(--ink);border-bottom:1px solid var(--line);transition:color .15s,padding-left .15s}
 .m-links .m-link:hover,.m-links .m-link:focus-visible{color:var(--red);padding-left:.6rem}
 .m-links .m-link.active{color:var(--red)}
+/* phones: footer legal links get a finger-sized tap area (they were 22px tall) */
+@media(max-width:560px){.footer-bottom .legal a{display:inline-flex;align-items:center;min-height:40px}}
+/* sub-pages listed under their parent (Services → Hyderabad, Visakhapatnam) */
+.m-links .m-sub{padding:.8rem .25rem .8rem 1.4rem;font-size:1rem;font-weight:500;color:var(--slate);gap:.55rem}
+.m-links .m-sub::before{content:"";width:12px;height:16px;flex:none;background:var(--red);-webkit-mask:var(--pin-mask) center/contain no-repeat;mask:var(--pin-mask) center/contain no-repeat}
+.m-links .m-sub:hover,.m-links .m-sub:focus-visible{padding-left:1.7rem}
 .mobile-nav .m-cta{margin-top:1.5rem;width:100%;flex:none;min-height:52px;padding:.85rem 1.5rem;font-size:1rem;gap:.6rem}
 .mobile-nav .m-cta svg{width:18px;height:18px;flex:none}
 

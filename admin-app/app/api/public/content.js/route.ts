@@ -2,6 +2,7 @@
 // A tiny script that sets window.GHR_CMS. Loaded by every public page right after
 // data.js; when it's unavailable (e.g. the site opened as static files) the pages
 // simply keep their built-in content. Cached at the CDN for a minute.
+import { gzipSync } from 'node:zlib';
 import { publicContent } from '@/lib/public-content';
 
 export const dynamic = 'force-dynamic';
@@ -17,13 +18,18 @@ export async function GET(req: Request) {
   const sets = new Set((new URL(req.url).searchParams.get('with') || '').split(',').filter((s) => s === 'projects' || s === 'properties'));
   try {
     const body = `window.GHR_CMS=${scriptSafeJson(await publicContent(sets))};`;
-    return new Response(body, {
-      headers: {
-        'Content-Type': 'application/javascript; charset=utf-8',
-        'Cache-Control': 'public, max-age=0, s-maxage=60, stale-while-revalidate=600',
-        'X-Content-Type-Options': 'nosniff',
-      },
-    });
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/javascript; charset=utf-8',
+      'Cache-Control': 'public, max-age=0, s-maxage=60, stale-while-revalidate=600',
+      'X-Content-Type-Options': 'nosniff',
+      Vary: 'Accept-Encoding',
+    };
+    // Route handlers aren't compressed for us; the project feed is ~50KB, so gzip it (~5x smaller).
+    if (body.length > 1024 && /\bgzip\b/.test(req.headers.get('accept-encoding') || '')) {
+      headers['Content-Encoding'] = 'gzip';
+      return new Response(new Uint8Array(gzipSync(body)), { headers });
+    }
+    return new Response(body, { headers });
   } catch (e) {
     console.error('public content failed', e);
     // Fall back to the page's built-in content rather than breaking the site.
