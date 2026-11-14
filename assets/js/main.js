@@ -97,6 +97,7 @@
         <div class="nav-util">
           <div class="nav-social" aria-label="Social media">${socialLinks()}</div>
           <a class="nav-util-link" href="${CONFIG.tbPhoneHref||CONFIG.phoneHref}">${ICON.phone}<span>${CONFIG.tbPhone||CONFIG.phone}</span></a>
+          ${CONFIG.phone2?`<a class="nav-util-link nav-util-phone2" href="tel:${CONFIG.phone2.replace(/\s/g,'')}"><span>${CONFIG.phone2}</span></a>`:''}
           <a class="nav-util-link" href="mailto:${CONFIG.tbEmail||CONFIG.email}">${ICON.mail}<span>${CONFIG.tbEmail||CONFIG.email}</span></a>
           <a class="btn btn--sm nav-util-btn" href="contact.html">Get Started</a>
         </div>

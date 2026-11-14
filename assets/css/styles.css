@@ -1710,6 +1710,8 @@ section[id],[id].section{scroll-margin-top:calc(var(--header-h) + 18px)}
   .nav-util-link{display:inline-flex;align-items:center;gap:.45rem;font-size:.9rem;font-weight:600;color:#1d1a17;white-space:nowrap}
   .nav-util-link svg{width:17px;height:17px;color:var(--red);flex:none}
   .nav-util-link:hover{color:var(--red)}
+  .nav-util-phone2{margin-left:-.6rem}
+  .nav-util-phone2::before{content:"/";color:#b9b2ae;font-weight:400;margin-right:.1rem}
   .nav-util-btn{border-radius:6px!important;padding:.55rem 1.15rem!important;font-size:.78rem!important;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
     background:var(--red)!important;border-color:var(--red)!important;box-shadow:none!important;transform:none!important}
   .nav-util-btn:hover{background:var(--red-deep)!important;border-color:var(--red-deep)!important}
