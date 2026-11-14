@@ -1096,7 +1096,7 @@ svg{max-width:100%}                    /* decorative SVGs never exceed their con
    to icons when space is tight (prevents the 2-line wrap ~700–1000px). */
 .topbar .wrap{flex-wrap:nowrap}
 @media(max-width:1024px){ .topbar-tag{display:none} }
-@media(max-width:860px){ .topbar .tb-text{display:none} }
+@media(max-width:860px){ .topbar .tb-text{display:none} .topbar .tb-phone2{display:none} }
 
 /* "Our Team" cards: push the Contact Advisor button to the bottom so every
    button sits on the same line regardless of bio / detail length. */

@@ -133,6 +133,17 @@ window.GHR_PAGE_INIT=function(){
     const cc=document.getElementById('ctaCall'); cc.textContent='Call '+C.phone; cc.href='tel:'+C.phone.replace(/\s/g,'');
     const tel='tel:'+C.phone.replace(/\s/g,'');
     document.getElementById('qCall').href=tel; document.getElementById('qCallTxt').textContent=C.phone;
+    if(C.phone2){
+      const tel2='tel:'+C.phone2.replace(/\s/g,'');
+      // "Call us" box: both numbers, each tappable (a link can't hold links, so the box becomes a div)
+      const q=document.getElementById('qCall'), box=document.createElement('div');
+      box.className=q.className; box.id='qCall'; box.innerHTML=q.innerHTML; q.replaceWith(box);
+      const sub=box.querySelector('#qCallTxt'); sub.textContent='';
+      [[tel,C.phone],[tel2,C.phone2]].forEach(([h,t])=>{ const a=document.createElement('a'); a.href=h; a.textContent=t; a.style.cssText='display:block;color:inherit'; sub.append(a); });
+      box.querySelector('.cq-go').remove();
+      // "Ready when you are" band: a second call button
+      const cc2=cc.cloneNode(); cc2.removeAttribute('id'); cc2.textContent='Call '+C.phone2; cc2.href=tel2; cc.after(cc2);
+    }
     document.getElementById('qWa').href=C.whatsapp;
     document.getElementById('qMail').href='mailto:'+C.email; document.getElementById('qMailTxt').textContent=C.email;
     document.getElementById('cOfficeAddr').textContent=C.addr;

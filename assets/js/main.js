@@ -86,6 +86,7 @@
       <div class="topbar-tag">${CONFIG.tag||'Canadian Brokerage · Hyderabad · Visakhapatnam'}</div>
       <div class="topbar-right">
         <a href="${CONFIG.tbPhoneHref||CONFIG.phoneHref}" aria-label="Call us">${ICON.phone}<span class="tb-text">${CONFIG.tbPhone||CONFIG.phone}</span></a>
+        ${CONFIG.phone2?`<a class="tb-phone2" href="tel:${CONFIG.phone2.replace(/\s/g,'')}" aria-label="Call us (second number)">${ICON.phone}<span class="tb-text">${CONFIG.phone2}</span></a>`:''}
         <a href="${CONFIG.tbWhatsapp||CONFIG.whatsapp}" target="_blank" rel="noopener" aria-label="Message us on WhatsApp">${ICON.whatsapp}<span class="tb-text">WhatsApp</span></a>
         <a href="mailto:${CONFIG.tbEmail||CONFIG.email}" aria-label="Email us">${ICON.mail}<span class="tb-text">${CONFIG.tbEmail||CONFIG.email}</span></a>
       </div>
