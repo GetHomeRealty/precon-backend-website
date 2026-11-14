@@ -700,6 +700,13 @@ const GHR_IMAGES = {
   "iconica-city-of-gold": ["assets/img/projects/iconica-city-of-gold/photo-1.webp", "assets/img/projects/iconica-city-of-gold/photo-2.webp", "assets/img/projects/iconica-city-of-gold/photo-3.webp", "assets/img/projects/iconica-city-of-gold/photo-4.webp"],
   "iconica-crown": ["assets/img/projects/iconica-crown/photo-1.webp", "assets/img/projects/iconica-crown/photo-2.webp", "assets/img/projects/iconica-crown/photo-3.webp", "assets/img/projects/iconica-crown/photo-4.webp", "assets/img/projects/iconica-crown/photo-5.webp"],
   "iconica-grande": ["assets/img/projects/iconica-grande/photo-1.webp", "assets/img/projects/iconica-grande/photo-2.webp", "assets/img/projects/iconica-grande/photo-3.webp", "assets/img/projects/iconica-grande/photo-4.webp", "assets/img/projects/iconica-grande/photo-5.webp"],
+  "iconica": ["assets/img/projects/iconica/photo-1.webp"],
+  "karlan-pandurangapuram": ["assets/img/projects/karlan-pandurangapuram/photo-1.webp"],
+  "mk-builders": ["assets/img/projects/mk-builders/photo-1.webp"],
+  "vk-aurora": ["assets/img/projects/vk-aurora/photo-1.webp"],
+  "vk-infra": ["assets/img/projects/vk-infra/photo-1.webp"],
+  "vv-aero-city": ["assets/img/projects/vv-aero-city/photo-1.webp"],
+  "vv-infra": ["assets/img/projects/vv-infra/photo-1.webp"],
   "hyd-jet-county": ["assets/img/projects/hyd-jet-county/entrance.webp", "assets/img/projects/hyd-jet-county/aerial-avenue.webp", "assets/img/projects/hyd-jet-county/aerial-layout.webp", "assets/img/projects/hyd-jet-county/avenue-plots.webp"],
   "hyd-western-springs": ["assets/img/projects/hyd-western-springs/aerial.webp", "assets/img/projects/hyd-western-springs/clubhouse.webp", "assets/img/projects/hyd-western-springs/pool.webp"]
 };

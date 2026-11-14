@@ -105,7 +105,13 @@
   // gradient (never a stock or borrowed photo). The gradient is also the layer under a real
   // photo, so a builder image that fails to load leaves the gradient, not a broken icon.
   function strHash(s){let h=0;for(let i=0;i<s.length;i++){h=(h*31+s.charCodeAt(i))>>>0;}return h;}
-  function realImgs(d){return ((window.GHR.GHR_IMAGES||{})[d.id])||((window.GHR.GHR_DETAILS||{})[d.id]||{}).images||[];}
+  // A project with no photos of its own shows a labelled city photo ("CITY PHOTO · photos coming soon"),
+  // never another building, so nobody mistakes it for the project.
+  function cityPhoto(d){return /visakha|vizag/i.test((d.city||'')+' '+(d.id||''))?'assets/img/area/visakhapatnam.webp':'assets/img/area/hyderabad.webp';}
+  function realImgs(d){
+    const own=((window.GHR.GHR_IMAGES||{})[d.id])||((window.GHR.GHR_DETAILS||{})[d.id]||{}).images||[];
+    return own.filter(Boolean).length?own:[cityPhoto(d)];
+  }
   // Per-project gradient (varied hue), so photo-less cards stay distinct rather than identical.
   function gradFor(d){
     const h=strHash(d.id)%360;
