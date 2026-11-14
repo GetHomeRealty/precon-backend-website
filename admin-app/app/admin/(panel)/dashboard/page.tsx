@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 const STATUS_TONE: Record<string, string> = { new: 'red', contacted: 'info', follow_up: 'warn', qualified: 'ok', closed: 'ok', lost: '' };
 
 export default async function Dashboard() {
-  const [[c], leads, props, projects, activity] = await Promise.all([
+  const [[c], leads, props, projects, activity, viewed] = await Promise.all([
     q(`select (select count(*)::int from properties) as properties,
               (select count(*)::int from projects) as projects,
               (select count(*)::int from reviews) as reviews,
@@ -23,6 +23,9 @@ export default async function Dashboard() {
     q(`select id, title, city, main_image, is_active, created_at from properties order by created_at desc, id desc limit 5`),
     q(`select id, name, location, city, main_image, is_published, created_at from projects order by created_at desc, id desc limit 5`),
     q(`select l.summary, l.created_at, a.name from activity_log l left join admins a on a.id = l.admin_id where l.action <> 'login' order by l.created_at desc limit 8`),
+    q(`select p.id, p.name, p.location, p.city, p.main_image, sum(v.views)::int as views
+         from project_views v join projects p on p.slug = v.slug
+        where v.day > current_date - 30 group by p.id order by views desc limit 6`),
   ]);
 
   const cards = [
@@ -84,6 +87,20 @@ export default async function Dashboard() {
               ))}
             </ul>
           ) : <div className="empty">No activity yet.</div>}
+        </section>
+
+        <section className="card">
+          <div className="card-head"><div><h2>Most viewed projects</h2><p>Last 30 days on the website</p></div><Link className="btn btn-sm" href="/admin/project-views">View all</Link></div>
+          <ul className="mini-list">
+            {viewed.map((p) => (
+              <li key={p.id}>
+                <Thumb src={p.main_image} />
+                <div className="grow"><Link className="t" href={`/admin/projects/${p.id}`}>{p.name}</Link><div className="s">{[p.location, p.city].filter(Boolean).join(', ')}</div></div>
+                <span className="badge info">{Number(p.views).toLocaleString()} views</span>
+              </li>
+            ))}
+            {!viewed.length && <li className="muted">No project views recorded yet — counting starts with the next website visits.</li>}
+          </ul>
         </section>
 
         <section className="card">

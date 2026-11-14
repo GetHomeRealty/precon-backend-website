@@ -7,7 +7,7 @@
 // any localhost / 127.0.0.1 page is allowed too.
 import { one, q } from '@/lib/db';
 import { clientIp, fail, handle, HttpError, json, readJson } from '@/lib/http';
-import { PublicLead } from '@/lib/leads';
+import { PublicLead, resolveViewed } from '@/lib/leads';
 import { rateLimit } from '@/lib/ratelimit';
 
 const DEV = process.env.NODE_ENV !== 'production';
@@ -65,11 +65,12 @@ export async function POST(req: Request) {
       const p = await one('select id, name from projects where slug = $1', [d.reference.id]);
       if (p) { projectId = p.id; refLabel = `Project: ${p.name}`; }
     }
+    const viewed = await resolveViewed(d.viewed);
     await q(
-      `insert into leads (name, phone, email, message, inquiry_type, property_id, project_id, reference_label, source, details, ip, user_agent)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12)`,
+      `insert into leads (name, phone, email, message, inquiry_type, property_id, project_id, reference_label, source, details, ip, user_agent, viewed_projects)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12,$13::jsonb)`,
       [d.name, d.phone, d.email, d.message, d.inquiry_type, propertyId, projectId, refLabel, d.source,
-        JSON.stringify(d.details || {}), ip, (req.headers.get('user-agent') || '').slice(0, 300)]);
+        JSON.stringify(d.details || {}), ip, (req.headers.get('user-agent') || '').slice(0, 300), JSON.stringify(viewed)]);
     return withCors(json({ ok: true }, 201), origin);
   } catch (e) { return withCors(handle(e), origin); }
 }

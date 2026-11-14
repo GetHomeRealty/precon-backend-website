@@ -927,6 +927,7 @@
   }
   window.GHR.openProjectModal=function(d){
     if(!d) return;
+    if(window.GHR.trackProjectView) window.GHR.trackProjectView(d.id);   // view history + anonymous count
     ensureModal();
     renderDeck(d,_slideCache[d.id]);
     placeUnderHeader();

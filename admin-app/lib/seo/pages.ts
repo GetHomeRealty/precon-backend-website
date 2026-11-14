@@ -177,6 +177,7 @@ export async function projectPage(req: Request, slug: string) {
     ['Price', price], ['Configuration', p.bedrooms], ['Unit sizes', p.unit_sizes], ['Possession', p.possession],
     ['Status', labelOf(PROJECT_STATUS, p.status)], ['Project scale', p.project_scale || ex.scale]];
   const body = `
+<div data-track-project="${esc(p.slug)}" hidden></div>
 <section class="section section--tight" style="padding-top:calc(var(--header-h) - 40px)"><div class="wrap">
   ${breadcrumbHtml(crumbLinks(crumbs))}
   ${galleryHtml(images)}

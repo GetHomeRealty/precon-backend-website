@@ -183,6 +183,26 @@ export function LeadView({ id, canDelete }: { id: number; canDelete: boolean }) 
           </section>
 
           <section className="card">
+            <div className="card-head"><div><h2>Projects viewed</h2><p>What this visitor opened on the website before enquiring (from their browser).</p></div></div>
+            <div className="card-body">
+              {Array.isArray(lead.viewed_projects) && lead.viewed_projects.length ? (
+                <table className="tbl">
+                  <thead><tr><th>Project</th><th style={{ textAlign: 'right' }}>Times viewed</th><th>Last viewed</th></tr></thead>
+                  <tbody>
+                    {lead.viewed_projects.map((v: Row) => (
+                      <tr key={v.slug}>
+                        <td><a className="link" style={{ color: 'var(--accent)' }} href={`/projects/${v.slug}`} target="_blank" rel="noreferrer">{v.name} <ExternalLink size={12} /></a></td>
+                        <td style={{ textAlign: 'right', fontWeight: 600 }}>{v.views}</td>
+                        <td>{v.last ? fmtDate(v.last) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : <p className="muted" style={{ margin: 0 }}>No project views recorded — the visitor may not have opened any project, or used another browser.</p>}
+            </div>
+          </section>
+
+          <section className="card">
             <div className="card-head"><div><h2>Internal notes</h2><p>Only visible to admins.</p></div><StickyNote size={18} color="var(--ink-3)" /></div>
             <div className="card-body">
               <form onSubmit={addNote} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

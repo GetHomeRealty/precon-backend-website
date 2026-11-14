@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import {
-  Building, Building2, KeyRound, MapPin, Clapperboard, ExternalLink, House, Inbox, LayoutDashboard, LogOut, Menu,
+  Building, Building2, KeyRound, MapPin, Clapperboard, ExternalLink, Eye, House, Inbox, LayoutDashboard, LogOut, Menu,
   PanelLeftClose, PanelLeftOpen, Phone, Settings, Share2, Star, Users, X,
 } from 'lucide-react';
 import { api, setCsrf } from './api';
@@ -25,6 +25,7 @@ const NAV = [
   { href: '/admin/locations', label: 'Locations', icon: MapPin },
   { group: 'Sales' },
   { href: '/admin/leads', label: 'Leads / Enquiries', icon: Inbox, badge: true },
+  { href: '/admin/project-views', label: 'Project Views', icon: Eye },
   { group: 'Business' },
   { href: '/admin/contact', label: 'Contact Details', icon: Phone },
   { href: '/admin/social', label: 'Social Media', icon: Share2 },

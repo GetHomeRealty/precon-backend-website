@@ -263,6 +263,8 @@
     if(ds.refType&&ds.refId)lead.reference={type:ds.refType,id:ds.refId};
     if(ds.source)lead.source=ds.source+(document.querySelector('h1')?': '+document.querySelector('h1').textContent.trim().slice(0,80):'');
     if(ds.inquiry&&!lead.inquiry_type)lead.inquiry_type=ds.inquiry;
+    // the projects this visitor opened before enquiring
+    const viewed=window.GHR.viewedForLead?window.GHR.viewedForLead():[]; if(viewed.length) lead.viewed=viewed;
     return lead;
   }
 
@@ -414,8 +416,41 @@
     apply();
   }
 
+  /* ---------------- project-view history ----------------
+     Each project a visitor opens is tallied in THEIR browser (localStorage) and sent along
+     only if they submit an enquiry, so the lead shows what they looked at. Each opening
+     also adds one to that project's anonymous total (/api/public/view). */
+  const VKEY='ghr_viewed';
+  function viewedHistory(){ try{ return JSON.parse(localStorage.getItem(VKEY)||'{}')||{}; }catch(e){ return {}; } }
+  const _counted=new Set();   // once per project per page load (re-renders don't count)
+  function trackProjectView(id){
+    if(!id||!/^[a-z0-9-]{2,100}$/.test(id)||_counted.has(id)) return;
+    _counted.add(id);
+    try{
+      const h=viewedHistory(); const e=h[id]||{n:0}; e.n=(e.n||0)+1; e.last=Date.now(); h[id]=e;
+      const keys=Object.keys(h); if(keys.length>50) keys.sort((a,b)=>(h[a].last||0)-(h[b].last||0)).slice(0,keys.length-50).forEach(k=>delete h[k]);
+      localStorage.setItem(VKEY,JSON.stringify(h));
+    }catch(e){}
+    if(!/^https?:$/.test(location.protocol)) return;
+    try{
+      const body=JSON.stringify({id});
+      if(navigator.sendBeacon) navigator.sendBeacon('/api/public/view',new Blob([body],{type:'application/json'}));
+      else fetch('/api/public/view',{method:'POST',headers:{'Content-Type':'application/json'},body,keepalive:true}).catch(()=>{});
+    }catch(e){}
+  }
+  window.GHR.trackProjectView=trackProjectView;
+  window.GHR.viewedForLead=function(){
+    const h=viewedHistory();
+    // (timestamps exceed 32 bits — use Math.floor, never |0)
+    return Object.keys(h).filter(id=>/^[a-z0-9-]{2,100}$/.test(id))
+      .map(id=>({id,n:Math.max(1,Math.min(10000,Math.floor(Number(h[id].n)||1))),last:Number(h[id].last)>0?Math.floor(h[id].last):undefined}))
+      .sort((a,b)=>b.n-a.n||(b.last||0)-(a.last||0)).slice(0,50);
+  };
+
   /* ---------------- boot ---------------- */
   document.addEventListener('DOMContentLoaded',()=>{
+    // server-rendered project pages (/projects/<slug>) mark themselves for the view tally
+    const tp=document.querySelector('[data-track-project]'); if(tp) trackProjectView(tp.getAttribute('data-track-project'));
     const page=document.body.getAttribute('data-page')||'index.html';
     const h=document.querySelector('[data-gh-header]');if(h)h.innerHTML=buildHeader(page);
     const f=document.querySelector('[data-gh-footer]');if(f)f.innerHTML=buildFooter();

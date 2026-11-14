@@ -22,7 +22,8 @@ function where(f: LeadFilters) {
   if (f.q) {
     p.push(`%${f.q.replace(/[\\%_]/g, (m) => '\\' + m)}%`);
     const n = p.length;
-    w.push(`(l.name ilike $${n} or l.email ilike $${n} or l.phone ilike $${n} or l.message ilike $${n} or l.reference_label ilike $${n})`);
+    w.push(`(l.name ilike $${n} or l.email ilike $${n} or l.phone ilike $${n} or l.message ilike $${n} or l.reference_label ilike $${n}
+             or exists (select 1 from jsonb_array_elements(l.viewed_projects) v where v->>'name' ilike $${n}))`);
   }
   if (f.status) { p.push(f.status); w.push(`l.status = $${p.length}`); }
   if (f.type) { p.push(f.type); w.push(`l.inquiry_type = $${p.length}`); }
@@ -63,6 +64,7 @@ export async function exportLeadsCsv(f: LeadFilters) {
   const { sql, params } = where(f);
   const rows = await q(
     `select l.id, l.created_at, l.name, l.phone, l.email, l.inquiry_type, l.reference_label, l.source, l.status, l.message, l.details,
+            (select string_agg((v->>'name') || ' (' || (v->>'views') || 'x)', ', ') from jsonb_array_elements(l.viewed_projects) v) as viewed,
             (select string_agg(to_char(n.created_at, 'YYYY-MM-DD') || ': ' || n.note, ' | ' order by n.created_at)
                from lead_notes n where n.lead_id = l.id) as notes
        from leads l ${sql} order by l.created_at desc limit 50000`, params);
@@ -75,10 +77,10 @@ export async function exportLeadsCsv(f: LeadFilters) {
     if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
     return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  const head = ['ID', 'Date', 'Name', 'Phone', 'Email', 'Inquiry type', 'Property / project', 'Source', 'Status', 'Message', 'Other details', 'Internal notes'];
+  const head = ['ID', 'Date', 'Name', 'Phone', 'Email', 'Inquiry type', 'Property / project', 'Source', 'Status', 'Message', 'Other details', 'Projects viewed', 'Internal notes'];
   const label = (s: string) => LEAD_STATUS.find((x) => x.value === s)?.label ?? s;
   const lines = rows.map((r) =>
-    [r.id, r.created_at, r.name, r.phone, r.email, r.inquiry_type, r.reference_label, r.source, label(r.status), r.message, r.details, r.notes]
+    [r.id, r.created_at, r.name, r.phone, r.email, r.inquiry_type, r.reference_label, r.source, label(r.status), r.message, r.details, r.viewed, r.notes]
       .map(cell).join(','));
   return '﻿' + [head.join(','), ...lines].join('\r\n');
 }
@@ -97,4 +99,25 @@ export const PublicLead = z.object({
   details: z.record(z.string().max(80), z.string().max(500)).optional()
     .refine((d) => !d || Object.keys(d).length <= 20, 'Too many fields.'),
   website: z.string().max(200).optional(), // honeypot — real visitors never fill it
+  // projects this visitor opened on the site before enquiring (kept in their browser, sent with the form)
+  viewed: z.array(z.object({
+    id: z.string().regex(/^[a-z0-9-]{2,100}$/),
+    n: z.number().int().min(1).max(10000),
+    last: z.number().int().min(0).optional(),
+  })).max(60).optional().catch(undefined), // a malformed history is dropped — it must never block an enquiry
 }).refine((d) => d.phone || d.email, { message: 'Enter a phone number or email.', path: ['phone'] });
+
+/**
+ * The viewing history sent with an enquiry, checked against real projects: only known slugs are
+ * kept, names come from the database (never from the browser), most-viewed first.
+ */
+export async function resolveViewed(viewed: { id: string; n: number; last?: number }[] | undefined) {
+  if (!viewed?.length) return [];
+  const rows = await q('select slug, name from projects where slug = any($1::text[])', [viewed.map((v) => v.id)]);
+  const name = new Map(rows.map((r) => [r.slug as string, r.name as string]));
+  const now = Date.now();
+  return viewed.filter((v) => name.has(v.id))
+    .map((v) => ({ slug: v.id, name: name.get(v.id)!, views: v.n,
+      last: v.last && v.last <= now + 60_000 && v.last > now - 400 * 864e5 ? new Date(v.last).toISOString() : null }))
+    .sort((a, b) => b.views - a.views || String(b.last).localeCompare(String(a.last)));
+}

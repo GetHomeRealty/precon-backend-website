@@ -376,6 +376,18 @@ alter table projects add column if not exists availability_status         text n
 alter table projects add column if not exists availability_note           text;
 alter table projects add column if not exists availability_internal_notes text;  -- admin role only
 
+-- ---------- project views (idempotent) ----------
+-- Which projects an enquirer looked at before sending the form ([{slug, name, views, last}]),
+-- and anonymous daily view totals per project (no IPs, no visitor identifiers).
+alter table leads add column if not exists viewed_projects jsonb not null default '[]'::jsonb;
+create table if not exists project_views (
+  slug   text not null,
+  day    date not null default current_date,
+  views  integer not null default 0,
+  primary key (slug, day)
+);
+alter table project_views enable row level security;
+
 -- ---------- lock down Supabase's auto-generated REST API ----------
 -- The app talks to Postgres directly with the server-side connection string
 -- (table owner, which bypasses RLS). Enabling RLS with no policies means the
