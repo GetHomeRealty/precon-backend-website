@@ -4,6 +4,7 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Download, Eye, FileText, Handshake, Mail, MapPin, Pencil, Phone, Plus, Save, Search, Trash2, Upload, User, X,
 } from 'lucide-react';
@@ -222,16 +223,36 @@ export function BuilderForm({ id }: { id: number | 'new' }) {
   const [errors, setErrors] = useState<Errors>({});
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [projects, setProjects] = useState<Row[]>([]);
+  const [project, setProject] = useState<Row | null>(null);
+  const [delProject, setDelProject] = useState<Row | null>(null);
+  const [busyDel, setBusyDel] = useState(false);
+  const tmpId = useRef(0);
+
+  const loadProjects = useCallback(async () => {
+    if (isNew) return;
+    try { setProjects((await api<Row>(`/api/admin/builders/${id}`)).projects || []); }
+    catch (e) { toast((e as Error).message, 'err'); }
+  }, [id, isNew, toast]);
 
   useEffect(() => {
     if (isNew) return;
     api<Row>(`/api/admin/builders/${id}`).then((b) => {
       const r = Object.fromEntries(Object.keys(EMPTY_BUILDER).map((k) => [k, b[k] ?? '']));
-      setRec(r); setOrig(b);
+      setRec(r); setOrig(b); setProjects(b.projects || []);
     }).catch((e) => setError((e as Error).message));
   }, [id, isNew]);
 
-  const dirty = !!file || (rec && (isNew ? Object.entries(rec).some(([k, v]) => v !== (EMPTY_BUILDER as Row)[k])
+  async function confirmDeleteProject() {
+    if (!delProject) return;
+    if (delProject.pending) { setProjects((l) => l.filter((x) => x.id !== delProject.id)); setDelProject(null); return; }
+    setBusyDel(true);
+    try { await api(`/api/admin/builders/${id}/projects/${delProject.id}`, { method: 'DELETE' }); toast('Project deleted'); setDelProject(null); loadProjects(); }
+    catch (e) { toast((e as Error).message, 'err'); }
+    finally { setBusyDel(false); }
+  }
+
+  const dirty = projects.some((p) => p.pending) || !!file || (rec && (isNew ? Object.entries(rec).some(([k, v]) => v !== (EMPTY_BUILDER as Row)[k])
     : orig && Object.keys(EMPTY_BUILDER).some((k) => (rec[k] ?? '') !== (orig[k] ?? ''))));
   useUnsavedWarning(!!dirty && !saving);
 
@@ -261,6 +282,14 @@ export function BuilderForm({ id }: { id: number | 'new' }) {
     try {
       const b = await api<Row>(isNew ? '/api/admin/builders' : `/api/admin/builders/${id}`, { method: isNew ? 'POST' : 'PATCH', body: rec });
       savedId = b.id;
+      // Projects added while creating the builder are saved now.
+      const failed: string[] = [];
+      for (const p of projects.filter((x) => x.pending)) {
+        const { id: _tmp, pending: _p, ...body } = p;
+        try { await api(`/api/admin/builders/${b.id}/projects`, { method: 'POST', body }); }
+        catch (pe) { failed.push(`${p.name} (${(pe as Error).message})`); }
+      }
+      if (failed.length) toast(`Builder saved, but ${failed.length} project${failed.length === 1 ? '' : 's'} could not be added: ${failed.join('; ')}`, 'err');
       if (file) {
         try { await uploadAgreement(b.id, file); }
         catch (up) {
@@ -284,7 +313,7 @@ export function BuilderForm({ id }: { id: number | 'new' }) {
           <div className="crumbs"><Link href="/admin/builders">Builders</Link><span>/</span>
             {isNew ? <span>Add builder</span> : <><Link href={`/admin/builders/${id}`}>{orig?.name}</Link><span>/</span><span>Edit</span></>}</div>
           <h1>{isNew ? 'Add Builder' : `Edit ${orig?.name || 'builder'}`}</h1>
-          <p>Contact details, contract agreement and notes. Projects are added from the builder’s profile.</p>
+          <p>Contact details, contract agreement, projects and notes.</p>
         </div>
       </div>
 
@@ -333,6 +362,9 @@ export function BuilderForm({ id }: { id: number | 'new' }) {
         </div>
       </section>
 
+      <ProjectsCard projects={projects} onAdd={(status) => setProject({ status })} onEdit={setProject} onDelete={setDelProject}
+        note={isNew ? 'Add the builder’s ongoing, upcoming and completed projects — they are saved together with the builder.' : 'Changes to projects are saved straight away.'} />
+
       <section className="card">
         <div className="card-head"><h2>Additional notes</h2></div>
         <div className="card-body">
@@ -347,6 +379,16 @@ export function BuilderForm({ id }: { id: number | 'new' }) {
         <Link className="btn" href={isNew ? '/admin/builders' : `/admin/builders/${id}`}>Cancel</Link>
         <button className="btn btn-primary" disabled={saving}>{saving ? <span className="spinner" /> : <Save size={16} />}{isNew ? 'Add builder' : 'Save changes'}</button>
       </div>
+
+      {project && <ProjectDialog builderId={isNew ? null : (id as number)} builder={rec} project={project} onClose={() => setProject(null)}
+        onSaved={(msg) => { setProject(null); toast(msg); loadProjects(); }}
+        onLocal={isNew ? (p) => {
+          setProjects((l) => p.id ? l.map((x) => (x.id === p.id ? { ...p, pending: true } : x)) : [...l, { ...p, id: `new-${++tmpId.current}`, pending: true }]);
+          setProject(null);
+        } : undefined} />}
+      <Confirm open={!!delProject} busy={busyDel} title="Delete this project?"
+        body={<>“{delProject?.name}” will be removed from this builder’s projects.</>}
+        onConfirm={confirmDeleteProject} onCancel={() => setDelProject(null)} />
     </form>
   );
 }
@@ -455,49 +497,7 @@ export function BuilderProfile({ id }: { id: number }) {
           </section>
 
           {/* C. Builder projects */}
-          <section className="card" id="projects">
-            <div className="card-head">
-              <div><h2>Builder projects</h2><p>{projects.length ? `${projects.length} project${projects.length === 1 ? '' : 's'} with this builder.` : 'No projects added yet.'}</p></div>
-              <button className="btn btn-primary btn-sm" onClick={() => setProject({ status: 'ongoing' })}><Plus size={14} />Add Project</button>
-            </div>
-            <div className="card-body bp-groups">
-              {PROJECT_STATUS.map((s) => {
-                const list = projects.filter((p) => p.status === s.value);
-                return (
-                  <div key={s.value} className="bp-group">
-                    <h3 className="section-title">{s.label} projects <span className="bp-count">{list.length}</span></h3>
-                    {list.length ? (
-                      <div className="bp-list">
-                        {list.map((p) => (
-                          <article key={p.id} className="bp-item">
-                            <div className="bp-top">
-                              <div className="bp-name">{p.name}</div>
-                              <span className={`badge ${projectTone(p.status)}`}>{projectLabel(p.status)}</span>
-                              <div className="bp-ctl">
-                                <button className="icon-btn" title="Edit project" aria-label={`Edit ${p.name}`} onClick={() => setProject(p)}><Pencil size={15} /></button>
-                                <button className="icon-btn" title="Delete project" aria-label={`Delete ${p.name}`} onClick={() => setDelProject(p)}><Trash2 size={15} /></button>
-                              </div>
-                            </div>
-                            <div className="bp-meta">
-                              <span><MapPin size={13} />{p.location || <span className="muted">Location not set</span>}</span>
-                              {p.contact_person && <span><User size={13} />{p.contact_person}</span>}
-                              {p.contact_phone ? <a className="bp-phone" href={`tel:${String(p.contact_phone).replace(/[^\d+]/g, '')}`}><Phone size={13} />{p.contact_phone}</a>
-                                : <span className="muted"><Phone size={13} />No contact number</span>}
-                              {p.contact_email && <a href={`mailto:${p.contact_email}`}><Mail size={13} />{p.contact_email}</a>}
-                            </div>
-                            {p.description && <p className="bp-desc">{p.description}</p>}
-                            {p.website_slug && <div className="bp-meta">{p.website_published
-                              ? <a href={`/projects/${p.website_slug}`} target="_blank" rel="noreferrer"><Eye size={13} />View on website</a>
-                              : <Link href={`/admin/projects/${p.project_id}`}><Eye size={13} />Website listing (draft)</Link>}</div>}
-                          </article>
-                        ))}
-                      </div>
-                    ) : <p className="muted bp-none">No {s.label.toLowerCase()} projects.</p>}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+          <ProjectsCard projects={projects} onAdd={(status) => setProject({ status })} onEdit={setProject} onDelete={setDelProject} />
         </div>
 
         {/* B. Contract agreements */}
@@ -583,12 +583,69 @@ function AgreementDates({ b, busy, onSave }: { b: Row; busy: boolean; onSave: (b
 }
 
 /* =====================================================================
+   Projects card (profile + edit page): grouped Ongoing / Upcoming / Completed
+   ===================================================================== */
+function ProjectsCard({ projects, onAdd, onEdit, onDelete, note }: {
+  projects: Row[]; onAdd: (status: string) => void; onEdit: (p: Row) => void; onDelete: (p: Row) => void; note?: string;
+}) {
+  return (
+    <section className="card" id="projects">
+      <div className="card-head">
+        <div><h2>Builder projects</h2><p>{note || (projects.length ? `${projects.length} project${projects.length === 1 ? '' : 's'} with this builder.` : 'No projects added yet.')}</p></div>
+        <button type="button" className="btn btn-primary btn-sm" onClick={() => onAdd('ongoing')}><Plus size={14} />Add Project</button>
+      </div>
+      <div className="card-body bp-groups">
+        {PROJECT_STATUS.map((s) => {
+          const list = projects.filter((p) => p.status === s.value);
+          return (
+            <div key={s.value} className="bp-group">
+              <h3 className="section-title">{s.label} projects <span className="bp-count">{list.length}</span>
+                <button type="button" className="btn btn-ghost btn-sm bp-add" onClick={() => onAdd(s.value)}><Plus size={14} />Add {s.label.toLowerCase()} project</button></h3>
+              {list.length ? (
+                <div className="bp-list">
+                  {list.map((p) => (
+                    <article key={p.id} className="bp-item">
+                      <div className="bp-top">
+                        <div className="bp-name">{p.name}</div>
+                        <span className={`badge ${projectTone(p.status)}`}>{projectLabel(p.status)}</span>
+                        {p.pending && <span className="badge warn plain">Saves with the builder</span>}
+                        <div className="bp-ctl">
+                          <button type="button" className="icon-btn" title="Edit project" aria-label={`Edit ${p.name}`} onClick={() => onEdit(p)}><Pencil size={15} /></button>
+                          <button type="button" className="icon-btn" title="Delete project" aria-label={`Delete ${p.name}`} onClick={() => onDelete(p)}><Trash2 size={15} /></button>
+                        </div>
+                      </div>
+                      <div className="bp-meta">
+                        <span><MapPin size={13} />{p.location || <span className="muted">Location not set</span>}</span>
+                        {p.contact_person && <span><User size={13} />{p.contact_person}</span>}
+                        {p.contact_phone ? <a className="bp-phone" href={`tel:${String(p.contact_phone).replace(/[^\d+]/g, '')}`}><Phone size={13} />{p.contact_phone}</a>
+                          : <span className="muted"><Phone size={13} />No contact number</span>}
+                        {p.contact_email && <a href={`mailto:${p.contact_email}`}><Mail size={13} />{p.contact_email}</a>}
+                      </div>
+                      {p.description && <p className="bp-desc">{p.description}</p>}
+                      {p.website_slug && <div className="bp-meta">{p.website_published
+                        ? <a href={`/projects/${p.website_slug}`} target="_blank" rel="noreferrer"><Eye size={13} />View on website</a>
+                        : <Link href={`/admin/projects/${p.project_id}`}><Eye size={13} />Website listing (draft)</Link>}</div>}
+                    </article>
+                  ))}
+                </div>
+              ) : <p className="muted bp-none">No {s.label.toLowerCase()} projects.</p>}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+/* =====================================================================
    Add / edit project dialog
    ===================================================================== */
 const EMPTY_PROJECT = { name: '', location: '', status: 'ongoing', contact_person: '', contact_email: '', contact_phone: '', description: '' };
 
-function ProjectDialog({ builderId, builder, project, onClose, onSaved }: {
-  builderId: number; builder: Row; project: Row; onClose: () => void; onSaved: (msg: string) => void;
+function ProjectDialog({ builderId, builder, project, onClose, onSaved, onLocal }: {
+  builderId: number | null; builder: Row; project: Row; onClose: () => void; onSaved: (msg: string) => void;
+  /** New builder (not saved yet): hand the project back instead of saving it. */
+  onLocal?: (p: Row) => void;
 }) {
   const isNew = !project.id;
   const [p, setP] = useState<Row>(() => ({ ...EMPTY_PROJECT, ...Object.fromEntries(Object.keys(EMPTY_PROJECT).map((k) => [k, project[k] ?? (EMPTY_PROJECT as Row)[k]])) }));
@@ -617,7 +674,9 @@ function ProjectDialog({ builderId, builder, project, onClose, onSaved }: {
 
   async function save(e: FormEvent) {
     e.preventDefault();
+    e.stopPropagation(); // the dialog can open from inside the builder form
     if (!p.name.trim()) { setErrors({ name: 'Enter the project name.' }); first.current?.focus(); return; }
+    if (onLocal) { onLocal({ ...project, ...p, name: p.name.trim() }); return; }
     setSaving(true); setError('');
     try {
       await api(isNew ? `/api/admin/builders/${builderId}/projects` : `/api/admin/builders/${builderId}/projects/${project.id}`,
@@ -629,7 +688,7 @@ function ProjectDialog({ builderId, builder, project, onClose, onSaved }: {
     }
   }
 
-  return (
+  return createPortal(
     <div className="modal-back" onMouseDown={(e) => e.target === e.currentTarget && !saving && onClose()}>
       <form className="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="pd-title" onSubmit={save} noValidate>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
@@ -663,6 +722,7 @@ function ProjectDialog({ builderId, builder, project, onClose, onSaved }: {
           <button className="btn btn-primary" disabled={saving}>{saving ? <span className="spinner" /> : <Save size={16} />}{isNew ? 'Add project' : 'Save project'}</button>
         </div>
       </form>
-    </div>
+    </div>,
+    document.body,
   );
 }

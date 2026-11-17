@@ -375,3 +375,4 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .bp-none { margin: 0; font-size: 13px; }
 .tbl.tbl-tight th, .tbl.tbl-tight td { padding-left: 11px; padding-right: 11px; }
 .bp-meta a.bp-phone { color: var(--accent); font-weight: 600; }
+.bp-group .section-title .bp-add { margin-left: auto; height: 28px; text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--accent); }
