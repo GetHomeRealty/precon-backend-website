@@ -1,0 +1,642 @@
+'use client';
+// Builder Management: builder list, add/edit builder, builder profile (details,
+// contract agreement, projects) and the add/edit project dialog. Internal only.
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import {
+  Download, Eye, FileText, Handshake, Mail, MapPin, Pencil, Phone, Plus, Save, Search, Trash2, Upload, User, X,
+} from 'lucide-react';
+import { api, ApiError } from './api';
+import { Confirm, FieldWrap, fmtDate, useToast, useUnsavedWarning } from './ui';
+import { useRole } from './AdminShell';
+import {
+  AGREEMENT_MAX_BYTES, AGREEMENT_STATUS, PROJECT_STATUS, agreementLabel, agreementTone, fmtDay, isPastDay, projectLabel, projectTone,
+} from '@/lib/builder-options';
+
+type Row = Record<string, any>;
+type Errors = Record<string, string>;
+
+const dash = <span className="muted">—</span>;
+const agreementUrl = (id: number, download = false) => `/api/admin/builders/${id}/agreement${download ? '?download=1' : ''}`;
+
+function AgreementBadge({ b }: { b: Row }) {
+  const lapsed = b.agreement_status === 'completed' && isPastDay(b.agreement_expiry);
+  return (
+    <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
+      <span className={`badge ${agreementTone(b.agreement_status)}`}>{agreementLabel(b.agreement_status)}</span>
+      {lapsed && <span className="sub" style={{ color: 'var(--accent)' }}>Expiry date passed</span>}
+    </span>
+  );
+}
+
+/** Upload the agreement PDF (multipart); returns the updated builder. */
+async function uploadAgreement(id: number, file: File) {
+  const form = new FormData();
+  form.append('file', file);
+  return api<Row>(`/api/admin/builders/${id}/agreement`, { method: 'POST', form });
+}
+
+function checkPdf(file: File): string | null {
+  if (file.size > AGREEMENT_MAX_BYTES) return 'The PDF is larger than 20 MB.';
+  if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') return 'Choose a PDF file.';
+  return null;
+}
+
+/** Click-or-drop PDF picker. */
+function PdfDrop({ onFile, label = 'Upload agreement (PDF)' }: { onFile: (f: File) => void; label?: string }) {
+  const input = useRef<HTMLInputElement>(null);
+  const [over, setOver] = useState(false);
+  return (
+    <div className={`drop ${over ? 'over' : ''}`} role="button" tabIndex={0}
+      onClick={() => input.current?.click()}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.current?.click(); } }}
+      onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
+      onDrop={(e) => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files?.[0]; if (f) onFile(f); }}>
+      <Upload size={20} />
+      <div><b>{label}</b> or drag it here</div>
+      <div className="hint">PDF only, up to 20 MB. Only signed-in admins can open it.</div>
+      <input ref={input} type="file" accept="application/pdf,.pdf"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ''; }} />
+    </div>
+  );
+}
+
+/* =====================================================================
+   Builder list
+   ===================================================================== */
+export function BuilderList() {
+  const router = useRouter();
+  const sp = useSearchParams();
+  const [data, setData] = useState<{ items: Row[]; locations: string[]; counts: Record<string, number> } | null>(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [qText, setQText] = useState(sp.get('q') || '');
+  const query = sp.toString();
+
+  const load = useCallback(async () => {
+    setLoading(true); setError('');
+    try { setData(await api(`/api/admin/builders?${query}`)); }
+    catch (e) { setError((e as Error).message); }
+    finally { setLoading(false); }
+  }, [query]);
+  useEffect(() => { load(); }, [load]);
+
+  const setParam = useCallback((k: string, v: string) => {
+    const p = new URLSearchParams(window.location.search);
+    if (v) p.set(k, v); else p.delete(k);
+    router.replace(`/admin/builders${p.toString() ? `?${p}` : ''}`, { scroll: false });
+  }, [router]);
+
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) { first.current = false; return; }
+    const t = setTimeout(() => setParam('q', qText.trim()), 300);
+    return () => clearTimeout(t);
+  }, [qText, setParam]);
+
+  const total = data ? Object.values(data.counts).reduce((a, b) => a + b, 0) : 0;
+  const status = sp.get('status') || '';
+  const filtered = !!(sp.get('q') || sp.get('location') || status);
+
+  return (
+    <>
+      <div className="page-head">
+        <div>
+          <h1>Builders</h1>
+          <p>Builders you work with, their contract agreements and their projects. Internal only — nothing here appears on the website.</p>
+        </div>
+        <div className="actions"><Link className="btn btn-primary" href="/admin/builders/new"><Plus size={16} />Add Builder</Link></div>
+      </div>
+
+      <div className="status-pills" style={{ marginBottom: 14 }} role="group" aria-label="Agreement status">
+        <button className={!status ? 'on' : ''} onClick={() => setParam('status', '')}>All ({total})</button>
+        {AGREEMENT_STATUS.map((s) => (
+          <button key={s.value} className={status === s.value ? 'on' : ''} onClick={() => setParam('status', s.value)}>
+            {s.label} ({data?.counts[s.value] ?? 0})
+          </button>
+        ))}
+      </div>
+
+      <section className="card">
+        <div className="toolbar">
+          <div className="search"><Search size={16} />
+            <input className="input" placeholder="Search builder, contact, email or phone…" value={qText} onChange={(e) => setQText(e.target.value)} aria-label="Search builders" />
+          </div>
+          <select className="select" style={{ width: 'auto', minWidth: 170 }} value={sp.get('location') || ''} onChange={(e) => setParam('location', e.target.value)} aria-label="Location">
+            <option value="">All locations</option>
+            {data?.locations.map((l) => <option key={l} value={l}>{l}</option>)}
+          </select>
+          <select className="select" style={{ width: 'auto', minWidth: 190 }} value={status} onChange={(e) => setParam('status', e.target.value)} aria-label="Agreement status">
+            <option value="">All agreement statuses</option>
+            {AGREEMENT_STATUS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+          {filtered && <button className="btn btn-ghost btn-sm" onClick={() => { setQText(''); router.replace('/admin/builders', { scroll: false }); }}><X size={14} />Clear</button>}
+        </div>
+
+        {error && <div className="card-body"><div className="alert err">{error}</div></div>}
+        <div className="table-wrap">
+          <table className="tbl stack tbl-tight">
+            <thead><tr>
+              <th>Builder name</th><th>Location</th><th>Contact person</th><th>Email address</th><th>Phone number</th>
+              <th>Agreement status</th><th className="num">Projects</th><th className="num">Actions</th>
+            </tr></thead>
+            <tbody>
+              {loading && !data && [0, 1, 2, 3].map((i) => (
+                <tr key={i}>{[0, 1, 2, 3, 4, 5, 6, 7].map((j) => <td key={j}><div className="skeleton" style={{ width: j === 0 ? 160 : 80 }} /></td>)}</tr>
+              ))}
+              {data?.items.map((b) => (
+                <tr key={b.id} style={{ opacity: loading ? 0.6 : 1 }}>
+                  <td className="title-cell" style={{ minWidth: 150 }}><Link href={`/admin/builders/${b.id}`}>{b.name}</Link></td>
+                  <td data-label="Location">{b.location || dash}</td>
+                  <td data-label="Contact">{b.contact_person || dash}</td>
+                  <td data-label="Email">{b.email ? <a href={`mailto:${b.email}`}>{b.email}</a> : dash}</td>
+                  <td data-label="Phone" style={{ whiteSpace: 'nowrap' }}>{b.phone ? <a href={`tel:${b.phone.replace(/[^\d+]/g, '')}`}>{b.phone}</a> : dash}</td>
+                  <td data-label="Agreement"><AgreementBadge b={b} /></td>
+                  <td data-label="Projects" className="num">
+                    <span style={{ fontWeight: 600 }}>{b.projects}</span>
+                    {b.projects > 0 && <div className="sub" style={{ whiteSpace: 'nowrap', lineHeight: 1.35 }}>
+                      {[b.ongoing && `${b.ongoing} ongoing`, b.upcoming && `${b.upcoming} upcoming`, b.completed && `${b.completed} completed`].filter(Boolean).map((t) => <div key={t as string}>{t}</div>)}
+                    </div>}
+                  </td>
+                  <td className="c-actions">
+                    <div className="row-actions">
+                      <Link className="icon-btn" title="View builder" aria-label={`View ${b.name}`} href={`/admin/builders/${b.id}`}><Eye size={16} /></Link>
+                      <Link className="icon-btn" title="Edit builder" aria-label={`Edit ${b.name}`} href={`/admin/builders/${b.id}/edit`}><Pencil size={16} /></Link>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {data && !data.items.length && (
+          <div className="empty"><Handshake size={32} />
+            <div>{filtered ? 'No builders match these filters.' : 'No builders yet.'}</div>
+            {!filtered && <Link className="btn btn-primary btn-sm" style={{ marginTop: 12 }} href="/admin/builders/new"><Plus size={14} />Add the first builder</Link>}
+          </div>
+        )}
+        {data && data.items.length > 0 && <div className="pager"><span>{data.items.length} builder{data.items.length === 1 ? '' : 's'}{filtered ? ` (of ${total})` : ''}</span></div>}
+      </section>
+    </>
+  );
+}
+
+/* =====================================================================
+   Add / edit builder
+   ===================================================================== */
+const EMPTY_BUILDER = {
+  name: '', location: '', contact_person: '', phone: '', email: '',
+  agreement_status: 'not_initiated', agreement_date: '', agreement_expiry: '', notes: '',
+};
+
+export function BuilderForm({ id }: { id: number | 'new' }) {
+  const isNew = id === 'new';
+  const router = useRouter();
+  const toast = useToast();
+  const [rec, setRec] = useState<Row | null>(isNew ? { ...EMPTY_BUILDER } : null);
+  const [orig, setOrig] = useState<Row | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [errors, setErrors] = useState<Errors>({});
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (isNew) return;
+    api<Row>(`/api/admin/builders/${id}`).then((b) => {
+      const r = Object.fromEntries(Object.keys(EMPTY_BUILDER).map((k) => [k, b[k] ?? '']));
+      setRec(r); setOrig(b);
+    }).catch((e) => setError((e as Error).message));
+  }, [id, isNew]);
+
+  const dirty = !!file || (rec && (isNew ? Object.entries(rec).some(([k, v]) => v !== (EMPTY_BUILDER as Row)[k])
+    : orig && Object.keys(EMPTY_BUILDER).some((k) => (rec[k] ?? '') !== (orig[k] ?? ''))));
+  useUnsavedWarning(!!dirty && !saving);
+
+  if (error && !rec) return <div className="alert err">{error}</div>;
+  if (!rec) return <div className="loading-block"><span className="spinner" /></div>;
+
+  const set = (k: string, v: string) => { setRec((r) => ({ ...r!, [k]: v })); setErrors((e) => ({ ...e, [k]: '' })); };
+  const input = (k: string, label: string, opts: { type?: string; required?: boolean; span?: string; placeholder?: string; auto?: string } = {}) => (
+    <FieldWrap label={label} required={opts.required} error={errors[k]} className={opts.span || 'span-3'} htmlFor={`b-${k}`}>
+      <input id={`b-${k}`} className={`input ${errors[k] ? 'invalid' : ''}`} type={opts.type || 'text'} value={rec[k] ?? ''}
+        placeholder={opts.placeholder} autoComplete={opts.auto || 'off'} maxLength={k === 'phone' ? 40 : 200}
+        onChange={(e) => set(k, e.target.value)} />
+    </FieldWrap>
+  );
+
+  function pick(f: File) {
+    const problem = checkPdf(f);
+    if (problem) { setErrors((e) => ({ ...e, agreement_file: problem })); return; }
+    setErrors((e) => ({ ...e, agreement_file: '' })); setFile(f);
+  }
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    if (!rec!.name.trim()) { setErrors({ name: 'Enter the builder name.' }); return; }
+    setSaving(true); setError(''); setErrors({});
+    let savedId = isNew ? 0 : (id as number);
+    try {
+      const b = await api<Row>(isNew ? '/api/admin/builders' : `/api/admin/builders/${id}`, { method: isNew ? 'POST' : 'PATCH', body: rec });
+      savedId = b.id;
+      if (file) {
+        try { await uploadAgreement(b.id, file); }
+        catch (up) {
+          toast(`Builder saved, but the agreement upload failed: ${(up as Error).message}`, 'err');
+          router.push(`/admin/builders/${b.id}`); router.refresh();
+          return;
+        }
+      }
+      toast(isNew ? 'Builder added' : 'Builder updated');
+      router.push(`/admin/builders/${savedId}`); router.refresh();
+    } catch (err) {
+      if (err instanceof ApiError) { setErrors(err.fields); setError(err.message); } else setError((err as Error).message);
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form onSubmit={save} noValidate>
+      <div className="page-head">
+        <div>
+          <div className="crumbs"><Link href="/admin/builders">Builders</Link><span>/</span>
+            {isNew ? <span>Add builder</span> : <><Link href={`/admin/builders/${id}`}>{orig?.name}</Link><span>/</span><span>Edit</span></>}</div>
+          <h1>{isNew ? 'Add Builder' : `Edit ${orig?.name || 'builder'}`}</h1>
+          <p>Contact details, contract agreement and notes. Projects are added from the builder’s profile.</p>
+        </div>
+      </div>
+
+      {error && <div className="alert err" role="alert" style={{ marginBottom: 16 }}>{error}</div>}
+
+      <section className="card">
+        <div className="card-head"><h2>Builder details</h2></div>
+        <div className="card-body">
+          <div className="form-grid">
+            {input('name', 'Builder name', { required: true, placeholder: 'e.g. Aparna Constructions', span: 'span-3', auto: 'organization' })}
+            {input('location', 'Builder location', { placeholder: 'e.g. Hyderabad', span: 'span-3' })}
+            {input('contact_person', 'Contact person name', { span: 'span-2', auto: 'name' })}
+            {input('phone', 'Contact number', { type: 'tel', placeholder: '+91 98765 43210', span: 'span-2', auto: 'tel' })}
+            {input('email', 'Email address', { type: 'email', placeholder: 'name@builder.com', span: 'span-2', auto: 'email' })}
+          </div>
+        </div>
+      </section>
+
+      <section className="card">
+        <div className="card-head"><div><h2>Contract agreement</h2><p>The PDF is stored privately — only signed-in admins can open it.</p></div></div>
+        <div className="card-body">
+          <div className="form-grid">
+            <FieldWrap label="Contract agreement status" required className="span-2" htmlFor="b-status" error={errors.agreement_status}>
+              <select id="b-status" className="select" value={rec.agreement_status} onChange={(e) => set('agreement_status', e.target.value)}>
+                {AGREEMENT_STATUS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
+            </FieldWrap>
+            {input('agreement_date', 'Agreement date', { type: 'date', span: 'span-2' })}
+            {input('agreement_expiry', 'Expiry date (if applicable)', { type: 'date', span: 'span-2' })}
+            <FieldWrap label="Agreement document (PDF)" className="span-6" error={errors.agreement_file}>
+              {file ? (
+                <div className="pdf-chip"><FileText size={20} color="var(--accent)" /><span className="grow">{file.name}</span>
+                  <span className="muted" style={{ fontSize: 12 }}>{(file.size / 1024 / 1024).toFixed(1)} MB · uploads when you save</span>
+                  <button type="button" className="icon-btn" title="Remove" aria-label="Remove chosen file" onClick={() => setFile(null)}><X size={16} /></button>
+                </div>
+              ) : orig?.has_agreement ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div className="pdf-chip"><FileText size={20} color="var(--accent)" /><span className="grow">{orig.agreement_file_name || 'Agreement.pdf'}</span>
+                    <a className="btn btn-sm" href={agreementUrl(orig.id)} target="_blank" rel="noreferrer"><Eye size={14} />View</a>
+                  </div>
+                  <PdfDrop onFile={pick} label="Replace with a new PDF" />
+                </div>
+              ) : <PdfDrop onFile={pick} />}
+            </FieldWrap>
+          </div>
+        </div>
+      </section>
+
+      <section className="card">
+        <div className="card-head"><h2>Additional notes</h2></div>
+        <div className="card-body">
+          <FieldWrap label="Notes" htmlFor="b-notes" error={errors.notes} help="Commission terms, payment schedule, who to follow up with…">
+            <textarea id="b-notes" className="textarea" rows={5} maxLength={10000} value={rec.notes} onChange={(e) => set('notes', e.target.value)} />
+          </FieldWrap>
+        </div>
+      </section>
+
+      <div className="savebar">
+        <span className="note">{dirty ? 'Unsaved changes' : orig?.updated_at ? `Last saved ${fmtDate(orig.updated_at)}` : ''}</span>
+        <Link className="btn" href={isNew ? '/admin/builders' : `/admin/builders/${id}`}>Cancel</Link>
+        <button className="btn btn-primary" disabled={saving}>{saving ? <span className="spinner" /> : <Save size={16} />}{isNew ? 'Add builder' : 'Save changes'}</button>
+      </div>
+    </form>
+  );
+}
+
+/* =====================================================================
+   Builder profile
+   ===================================================================== */
+export function BuilderProfile({ id }: { id: number }) {
+  const router = useRouter();
+  const toast = useToast();
+  const role = useRole();
+  const [b, setB] = useState<Row | null>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState('');
+  const [askDel, setAskDel] = useState(false);
+  const [askDoc, setAskDoc] = useState(false);
+  const [project, setProject] = useState<Row | null>(null);
+  const [delProject, setDelProject] = useState<Row | null>(null);
+
+  const load = useCallback(async () => {
+    try { setB(await api<Row>(`/api/admin/builders/${id}`)); }
+    catch (e) { setError((e as Error).message); }
+  }, [id]);
+  useEffect(() => { load(); }, [load]);
+
+  if (error && !b) return <div className="alert err">{error}</div>;
+  if (!b) return <div className="loading-block"><span className="spinner" /></div>;
+
+  async function patch(body: Row, msg: string) {
+    setBusy('status');
+    try { setB(await api<Row>(`/api/admin/builders/${id}`, { method: 'PATCH', body })); toast(msg); }
+    catch (e) { toast((e as Error).message, 'err'); }
+    finally { setBusy(''); }
+  }
+
+  async function upload(f: File) {
+    const problem = checkPdf(f);
+    if (problem) { toast(problem, 'err'); return; }
+    setBusy('upload');
+    try { setB(await uploadAgreement(id, f)); toast('Agreement uploaded'); }
+    catch (e) { toast((e as Error).message, 'err'); }
+    finally { setBusy(''); }
+  }
+
+  async function removeDoc() {
+    setBusy('doc');
+    try { setB(await api<Row>(`/api/admin/builders/${id}/agreement`, { method: 'DELETE' })); toast('Agreement document removed'); setAskDoc(false); }
+    catch (e) { toast((e as Error).message, 'err'); }
+    finally { setBusy(''); }
+  }
+
+  async function removeBuilder() {
+    setBusy('delete');
+    try { await api(`/api/admin/builders/${id}`, { method: 'DELETE' }); toast('Builder deleted'); router.replace('/admin/builders'); router.refresh(); }
+    catch (e) { toast((e as Error).message, 'err'); setBusy(''); }
+  }
+
+  async function removeProject() {
+    if (!delProject) return;
+    setBusy('project');
+    try { await api(`/api/admin/builders/${id}/projects/${delProject.id}`, { method: 'DELETE' }); toast('Project deleted'); setDelProject(null); load(); }
+    catch (e) { toast((e as Error).message, 'err'); }
+    finally { setBusy(''); }
+  }
+
+  const projects: Row[] = b.projects || [];
+  const tel = b.phone ? `tel:${String(b.phone).replace(/[^\d+]/g, '')}` : '';
+  const lapsed = b.agreement_status === 'completed' && isPastDay(b.agreement_expiry);
+
+  return (
+    <>
+      <div className="page-head">
+        <div>
+          <div className="crumbs"><Link href="/admin/builders">Builders</Link><span>/</span><span>{b.name}</span></div>
+          <h1>{b.name}</h1>
+          <p>{b.location ? <><MapPin size={13} style={{ verticalAlign: '-2px' }} /> {b.location} · </> : null}
+            {projects.length} project{projects.length === 1 ? '' : 's'} · Added {fmtDate(b.created_at)}</p>
+        </div>
+        <div className="actions">
+          {tel && <a className="btn" href={tel}><Phone size={16} />Call</a>}
+          {b.email && <a className="btn" href={`mailto:${b.email}`}><Mail size={16} />Email</a>}
+          <Link className="btn" href={`/admin/builders/${id}/edit`}><Pencil size={16} />Edit builder</Link>
+          {role === 'admin' && <button className="btn btn-danger" onClick={() => setAskDel(true)}><Trash2 size={16} />Delete</button>}
+        </div>
+      </div>
+
+      <div className="form-layout">
+        <div>
+          {/* A. Builder details */}
+          <section className="card" id="details">
+            <div className="card-head"><h2>Builder details</h2>
+              <Link className="btn btn-sm" href={`/admin/builders/${id}/edit`}><Pencil size={14} />Edit</Link></div>
+            <div className="card-body">
+              <dl className="kv">
+                <dt>Builder name</dt><dd>{b.name}</dd>
+                <dt>Location</dt><dd>{b.location || dash}</dd>
+                <dt>Contact person</dt><dd>{b.contact_person || dash}</dd>
+                <dt>Phone number</dt><dd>{b.phone ? <a className="link-red" href={tel}>{b.phone}</a> : dash}</dd>
+                <dt>Email address</dt><dd>{b.email ? <a className="link-red" href={`mailto:${b.email}`}>{b.email}</a> : dash}</dd>
+              </dl>
+              {b.notes && <>
+                <h3 className="section-title" style={{ marginTop: 22 }}>Additional notes</h3>
+                <div className="msg">{b.notes}</div>
+              </>}
+            </div>
+          </section>
+
+          {/* C. Builder projects */}
+          <section className="card" id="projects">
+            <div className="card-head">
+              <div><h2>Builder projects</h2><p>{projects.length ? `${projects.length} project${projects.length === 1 ? '' : 's'} with this builder.` : 'No projects added yet.'}</p></div>
+              <button className="btn btn-primary btn-sm" onClick={() => setProject({ status: 'ongoing' })}><Plus size={14} />Add Project</button>
+            </div>
+            <div className="card-body bp-groups">
+              {PROJECT_STATUS.map((s) => {
+                const list = projects.filter((p) => p.status === s.value);
+                return (
+                  <div key={s.value} className="bp-group">
+                    <h3 className="section-title">{s.label} projects <span className="bp-count">{list.length}</span></h3>
+                    {list.length ? (
+                      <div className="bp-list">
+                        {list.map((p) => (
+                          <article key={p.id} className="bp-item">
+                            <div className="bp-top">
+                              <div className="bp-name">{p.name}</div>
+                              <span className={`badge ${projectTone(p.status)}`}>{projectLabel(p.status)}</span>
+                              <div className="bp-ctl">
+                                <button className="icon-btn" title="Edit project" aria-label={`Edit ${p.name}`} onClick={() => setProject(p)}><Pencil size={15} /></button>
+                                <button className="icon-btn" title="Delete project" aria-label={`Delete ${p.name}`} onClick={() => setDelProject(p)}><Trash2 size={15} /></button>
+                              </div>
+                            </div>
+                            <div className="bp-meta">
+                              <span><MapPin size={13} />{p.location || <span className="muted">Location not set</span>}</span>
+                              {p.contact_person && <span><User size={13} />{p.contact_person}</span>}
+                              {p.contact_phone && <a href={`tel:${String(p.contact_phone).replace(/[^\d+]/g, '')}`}><Phone size={13} />{p.contact_phone}</a>}
+                              {p.contact_email && <a href={`mailto:${p.contact_email}`}><Mail size={13} />{p.contact_email}</a>}
+                            </div>
+                            {p.description && <p className="bp-desc">{p.description}</p>}
+                          </article>
+                        ))}
+                      </div>
+                    ) : <p className="muted bp-none">No {s.label.toLowerCase()} projects.</p>}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        </div>
+
+        {/* B. Contract agreements */}
+        <aside className="aside">
+          <section className="card" id="agreement">
+            <div className="card-head"><h2>Contract agreement</h2><span className={`badge ${agreementTone(b.agreement_status)}`}>{agreementLabel(b.agreement_status)}</span></div>
+            <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {lapsed && <div className="alert err" style={{ fontSize: 13 }}>The expiry date ({fmtDay(b.agreement_expiry)}) has passed. Renew the agreement or mark it Expired.</div>}
+              <div>
+                <div className="section-title" style={{ marginBottom: 8 }}>Update status</div>
+                <div className="status-pills">
+                  {AGREEMENT_STATUS.map((s) => (
+                    <button key={s.value} className={b.agreement_status === s.value ? 'on' : ''} disabled={!!busy}
+                      onClick={() => b.agreement_status !== s.value && patch({ agreement_status: s.value }, `Agreement status: ${s.label}`)}>{s.label}</button>
+                  ))}
+                </div>
+              </div>
+              <dl className="kv kv-tight">
+                <dt>Agreement date</dt><dd>{fmtDay(b.agreement_date) || dash}</dd>
+                <dt>Expiry date</dt><dd>{fmtDay(b.agreement_expiry) || dash}</dd>
+              </dl>
+              <AgreementDates b={b} busy={!!busy} onSave={(body) => patch(body, 'Agreement dates saved')} />
+              <div>
+                <div className="section-title" style={{ marginBottom: 8 }}>Agreement document</div>
+                {b.has_agreement ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div className="pdf-chip"><FileText size={20} color="var(--accent)" />
+                      <span className="grow" title={b.agreement_file_name || ''}>{b.agreement_file_name || 'Agreement.pdf'}</span></div>
+                    {b.agreement_uploaded_at && <span className="muted" style={{ fontSize: 12 }}>Uploaded {fmtDate(b.agreement_uploaded_at)}</span>}
+                    <div className="actions">
+                      <a className="btn btn-sm" href={agreementUrl(id)} target="_blank" rel="noreferrer"><Eye size={14} />View</a>
+                      <a className="btn btn-sm" href={agreementUrl(id, true)}><Download size={14} />Download</a>
+                      <button className="btn btn-sm btn-danger" onClick={() => setAskDoc(true)} disabled={!!busy}><Trash2 size={14} />Remove</button>
+                    </div>
+                    {busy === 'upload' ? <div className="loading-block" style={{ padding: 16 }}><span className="spinner" /></div>
+                      : <PdfDrop onFile={upload} label="Replace PDF" />}
+                  </div>
+                ) : busy === 'upload' ? <div className="loading-block" style={{ padding: 16 }}><span className="spinner" /></div>
+                  : <PdfDrop onFile={upload} />}
+              </div>
+            </div>
+          </section>
+        </aside>
+      </div>
+
+      {project && <ProjectDialog builderId={id} builder={b} project={project} onClose={() => setProject(null)}
+        onSaved={(msg) => { setProject(null); toast(msg); load(); }} />}
+
+      <Confirm open={askDel} busy={busy === 'delete'} title="Delete this builder?"
+        body={<>“{b.name}”, its {projects.length} project{projects.length === 1 ? '' : 's'} and the agreement document will be permanently removed.</>}
+        onConfirm={removeBuilder} onCancel={() => setAskDel(false)} />
+      <Confirm open={askDoc} busy={busy === 'doc'} title="Remove the agreement document?" confirmLabel="Remove"
+        body="The PDF will be permanently deleted. The agreement status and dates stay as they are."
+        onConfirm={removeDoc} onCancel={() => setAskDoc(false)} />
+      <Confirm open={!!delProject} busy={busy === 'project'} title="Delete this project?"
+        body={<>“{delProject?.name}” will be removed from {b.name}’s projects.</>}
+        onConfirm={removeProject} onCancel={() => setDelProject(null)} />
+    </>
+  );
+}
+
+/** Inline editor for the agreement / expiry dates on the profile. */
+function AgreementDates({ b, busy, onSave }: { b: Row; busy: boolean; onSave: (body: Row) => void }) {
+  const [open, setOpen] = useState(false);
+  const [d, setD] = useState({ agreement_date: b.agreement_date || '', agreement_expiry: b.agreement_expiry || '' });
+  useEffect(() => { setD({ agreement_date: b.agreement_date || '', agreement_expiry: b.agreement_expiry || '' }); }, [b.agreement_date, b.agreement_expiry]);
+  const bad = d.agreement_date && d.agreement_expiry && d.agreement_expiry < d.agreement_date;
+  if (!open) return <div><button className="btn btn-sm" onClick={() => setOpen(true)}><Pencil size={14} />Change dates</button></div>;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <FieldWrap label="Agreement date" htmlFor="ad-date">
+        <input id="ad-date" type="date" className="input" value={d.agreement_date} onChange={(e) => setD({ ...d, agreement_date: e.target.value })} />
+      </FieldWrap>
+      <FieldWrap label="Expiry date (if applicable)" htmlFor="ad-exp" error={bad ? 'The expiry date must be after the agreement date.' : ''}>
+        <input id="ad-exp" type="date" className={`input ${bad ? 'invalid' : ''}`} value={d.agreement_expiry} onChange={(e) => setD({ ...d, agreement_expiry: e.target.value })} />
+      </FieldWrap>
+      <div className="actions">
+        <button className="btn btn-primary btn-sm" disabled={busy || !!bad} onClick={() => { onSave(d); setOpen(false); }}>Save dates</button>
+        <button className="btn btn-sm" onClick={() => setOpen(false)}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+/* =====================================================================
+   Add / edit project dialog
+   ===================================================================== */
+const EMPTY_PROJECT = { name: '', location: '', status: 'ongoing', contact_person: '', contact_email: '', contact_phone: '', description: '' };
+
+function ProjectDialog({ builderId, builder, project, onClose, onSaved }: {
+  builderId: number; builder: Row; project: Row; onClose: () => void; onSaved: (msg: string) => void;
+}) {
+  const isNew = !project.id;
+  const [p, setP] = useState<Row>(() => ({ ...EMPTY_PROJECT, ...Object.fromEntries(Object.keys(EMPTY_PROJECT).map((k) => [k, project[k] ?? (EMPTY_PROJECT as Row)[k]])) }));
+  const [errors, setErrors] = useState<Errors>({});
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const first = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    first.current?.focus();
+    const k = (e: KeyboardEvent) => { if (e.key === 'Escape' && !saving) onClose(); };
+    document.addEventListener('keydown', k);
+    return () => document.removeEventListener('keydown', k);
+  }, [onClose, saving]);
+
+  const set = (k: string, v: string) => { setP((x) => ({ ...x, [k]: v })); setErrors((e) => ({ ...e, [k]: '' })); };
+  const field = (k: string, label: string, opts: { type?: string; required?: boolean; span?: string; placeholder?: string } = {}): ReactNode => (
+    <FieldWrap label={label} required={opts.required} error={errors[k]} className={opts.span || 'span-3'} htmlFor={`p-${k}`}>
+      <input id={`p-${k}`} ref={k === 'name' ? first : undefined} className={`input ${errors[k] ? 'invalid' : ''}`} type={opts.type || 'text'}
+        value={p[k] ?? ''} placeholder={opts.placeholder} maxLength={k === 'contact_phone' ? 40 : 200} autoComplete="off" onChange={(e) => set(k, e.target.value)} />
+    </FieldWrap>
+  );
+
+  /** Fill the project contact from the builder's own contact details. */
+  const copyContact = () => setP((x) => ({ ...x, contact_person: builder.contact_person || '', contact_email: builder.email || '', contact_phone: builder.phone || '' }));
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    if (!p.name.trim()) { setErrors({ name: 'Enter the project name.' }); first.current?.focus(); return; }
+    setSaving(true); setError('');
+    try {
+      await api(isNew ? `/api/admin/builders/${builderId}/projects` : `/api/admin/builders/${builderId}/projects/${project.id}`,
+        { method: isNew ? 'POST' : 'PATCH', body: p });
+      onSaved(isNew ? 'Project added' : 'Project updated');
+    } catch (err) {
+      if (err instanceof ApiError) { setErrors(err.fields); setError(err.message); } else setError((err as Error).message);
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-back" onMouseDown={(e) => e.target === e.currentTarget && !saving && onClose()}>
+      <form className="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="pd-title" onSubmit={save} noValidate>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+          <h3 id="pd-title" style={{ margin: 0 }}>{isNew ? 'Add project' : 'Edit project'}</h3>
+          <button type="button" className="icon-btn" style={{ marginLeft: 'auto' }} onClick={onClose} aria-label="Close"><X size={18} /></button>
+        </div>
+        <p style={{ marginBottom: 16 }}>Builder: <b>{builder.name}</b></p>
+        {error && <div className="alert err" role="alert" style={{ marginBottom: 14 }}>{error}</div>}
+        <div className="form-grid">
+          {field('name', 'Project name', { required: true, span: 'span-4', placeholder: 'e.g. Aparna Zenon' })}
+          <FieldWrap label="Project status" required className="span-2" htmlFor="p-status" error={errors.status}>
+            <select id="p-status" className="select" value={p.status} onChange={(e) => set('status', e.target.value)}>
+              {PROJECT_STATUS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          </FieldWrap>
+          {field('location', 'Project location', { span: 'span-6', placeholder: 'e.g. Kokapet, Hyderabad' })}
+          <div className="span-6" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: -8 }}>
+            <span className="section-title" style={{ margin: 0 }}>Project contact</span>
+            {(builder.contact_person || builder.email || builder.phone) &&
+              <button type="button" className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }} onClick={copyContact}>Same as builder contact</button>}
+          </div>
+          {field('contact_person', 'Contact person', { span: 'span-2' })}
+          {field('contact_phone', 'Contact phone number', { type: 'tel', span: 'span-2', placeholder: '+91 98765 43210' })}
+          {field('contact_email', 'Contact email address', { type: 'email', span: 'span-2' })}
+          <FieldWrap label="Project description" className="span-6" htmlFor="p-desc" error={errors.description}>
+            <textarea id="p-desc" className="textarea" rows={4} maxLength={10000} value={p.description} onChange={(e) => set('description', e.target.value)} />
+          </FieldWrap>
+        </div>
+        <div className="actions" style={{ marginTop: 18 }}>
+          <button type="button" className="btn" onClick={onClose} disabled={saving}>Cancel</button>
+          <button className="btn btn-primary" disabled={saving}>{saving ? <span className="spinner" /> : <Save size={16} />}{isNew ? 'Add project' : 'Save project'}</button>
+        </div>
+      </form>
+    </div>
+  );
+}
