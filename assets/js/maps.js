@@ -923,6 +923,7 @@
     closeModal();
     const m=_markers[id];
     if(m&&_map){
+      if(m._ghrPin) m._ghrPin();   // "show on map": keep the popup open, not hover-only
       _map.getContainer().scrollIntoView({behavior:'smooth',block:'center'});
       if(_cluster&&_cluster.hasLayer(m)&&_cluster.getVisibleParent(m)!==m){
         _cluster.zoomToShowLayer(m,()=>m.openPopup());
@@ -992,12 +993,59 @@
     function rmMk(m){ if(useCluster) cluster.removeLayer(m); else map.removeLayer(m); }
 
     const devMarkers={};
+    // The hover-opened popup (if any). Backstop for missed mouseout events (e.g. a pin redrawn
+    // during zoom or clustering): any pointer move that isn't over that pin or its popup closes it.
+    let hoverOpen=null;
+    document.addEventListener('mousemove',e=>{
+      const h=hoverOpen; if(!h||h.isPinned()) return;
+      const icon=h.m.getElement&&h.m.getElement();
+      if((icon&&icon.contains(e.target))||(h.el&&h.el.contains(e.target))) h.cancelHide(); else h.hideSoon();
+    },{passive:true});
     devs.forEach(d=>{
       if(typeof d.lat!=='number'||typeof d.lng!=='number') return;  // listed in the directory, no pin
       const m=L.marker([d.lat,d.lng],{icon:greenDot()});
       m.bindPopup(devPopupHtml(d),{closeButton:true,maxWidth:260});
-      m.on('mouseover',()=>m.openPopup());
-      m.on('click',()=>{map.flyTo(m.getLatLng(),Math.max(map.getZoom(),14),{duration:.5});m.openPopup();});
+      // Hover: the popup shows while the pointer is on the pin (or on the popup itself, so its
+      // buttons can be reached) and closes shortly after the pointer leaves both.
+      // Click (and touch): the popup stays open until closed or another pin is chosen.
+      let hideT=null, pinned=false;
+      const cancelHide=()=>{ clearTimeout(hideT); hideT=null; };
+      const hideSoon=()=>{ if(pinned||hideT) return; hideT=setTimeout(()=>{ hideT=null; if(!pinned) m.closePopup(); },250); };
+      const pop=m.getPopup();
+      m.on('mouseover',()=>{ cancelHide(); if(!m.isPopupOpen()){ pop.options.autoPan=false; m.openPopup(); } });
+      m.on('mouseout',hideSoon);
+      // Hover popups don't move the map (that would slide the pin out from under the pointer),
+      // so the popup itself is placed to fit: below the pin when there's no room above, and
+      // nudged sideways to stay inside the map.
+      // Placement is measured on screen (popup box vs map box), not estimated.
+      const fitPopup=()=>{
+        const el=pop.getElement(); if(!el) return;
+        const box=el.querySelector('.leaflet-popup-content-wrapper')||el, M=8;
+        const place=(x,y)=>{ pop.options.offset=L.point(x,y); pop.update(); };
+        const gaps=()=>{ const r=box.getBoundingClientRect(), c=map.getContainer().getBoundingClientRect();
+          return {top:r.top-c.top, bottom:c.bottom-r.bottom, left:r.left-c.left, right:c.right-r.right, h:r.height}; };
+        el.classList.remove('gh-pop-below','gh-pop-shift'); place(0,7);
+        let g=gaps(), offX=0, offY=7;
+        if(g.left<M) offX=M-g.left; else if(g.right<M) offX=g.right-M;
+        if(g.top<M){
+          // no room above: try below the pin (box top 20px under the tip, arrow pointing up).
+          // Leaflet puts the box bottom at tip + offset - 46 (pin anchor) - 20 (arrow margin).
+          el.classList.add('gh-pop-below'); offY=g.h+86; place(offX,offY);
+          const gb=gaps();
+          if(gb.bottom<M){ el.classList.remove('gh-pop-below'); offY=7; }   // doesn't fit below either
+        }
+        if(offX) el.classList.add('gh-pop-shift');
+        place(offX,offY);
+        // fits neither above nor below (map too short here): shift the map just enough
+        if(offY===7){ const g2=gaps(); if(g2.top<M) map.panBy([0,g2.top-M],{animate:true,duration:.25}); }
+      };
+      m.on('popupopen',()=>{ const el=pop.getElement(); if(el&&!el._ghrHover){ el._ghrHover=1; el.addEventListener('mouseenter',cancelHide); el.addEventListener('mouseleave',hideSoon); }
+        if(!pop.options.autoPan){ fitPopup(); hoverOpen={m,el,hideSoon,cancelHide,isPinned:()=>pinned}; }
+        else if(el){ el.classList.remove('gh-pop-below','gh-pop-shift'); pop.options.offset=L.point(0,7); pop.update(); } });
+      m.on('popupclose',()=>{ pinned=false; cancelHide(); if(hoverOpen&&hoverOpen.m===m) hoverOpen=null; });
+      m.on('click',()=>{ pinned=true; cancelHide(); pop.options.autoPan=true;
+        map.flyTo(m.getLatLng(),Math.max(map.getZoom(),14),{duration:.5}); if(!m.isPopupOpen()) m.openPopup(); });
+      m._ghrPin=()=>{ pinned=true; pop.options.autoPan=true; };
       devMarkers[d.id]=m;
       addMk(m);
     });

@@ -2187,3 +2187,7 @@ section[id],[id].section{scroll-margin-top:calc(var(--header-h) + 18px)}
   .hero2-float--a{left:2%;right:auto;top:2%;gap:.4rem;padding:.45rem .7rem}
   .hero2-float--a b{font-size:1.05rem}.hero2-float--a span{font-size:.56rem;letter-spacing:.08em}
 }
+
+/* map hover popups placed to fit (maps.js fitPopup): opened below the pin -> arrow on top; nudged sideways -> no arrow */
+.leaflet-popup.gh-pop-below .leaflet-popup-tip-container{top:-19px;transform:rotate(180deg)}
+.leaflet-popup.gh-pop-shift .leaflet-popup-tip-container{display:none}
