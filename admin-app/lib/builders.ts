@@ -2,7 +2,7 @@
 import { z } from 'zod';
 import { one, plain, q, tx, type Row } from './db';
 import { HttpError } from './http';
-import { AGREEMENT_STATUS, PROJECT_STATUS } from './builder-options';
+import { AGREEMENT_STATUS, LOAN_INCLUDED, PROJECT_STATUS } from './builder-options';
 
 const blank = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? null : v);
 const text = (max: number) => z.preprocess(blank, z.string().trim().max(max, `Keep it under ${max} characters.`).nullable().optional());
@@ -46,10 +46,16 @@ export const projectSchema = z.object({
     price: money('price'),
   })).max(50, 'Keep it to 50 prices.').optional(),
   /** Loan (installment) prices: base price + what is included. */
-  loan_prices: z.array(z.object({
-    base_price: money('base price'),
-    included: z.preprocess(blank, z.string().trim().max(1000, 'Keep it under 1000 characters.').nullable().optional()),
-  })).max(50, 'Keep it to 50 prices.').optional(),
+  loan_prices: z.array(z.preprocess(
+    // Older rows kept "included" as free text: carry it over as the "other" note.
+    (r) => (r && typeof r === 'object' && typeof (r as Row).included === 'string'
+      ? { ...(r as Row), included: [], included_note: (r as Row).included_note ?? (r as Row).included } : r),
+    z.object({
+      base_price: money('base price'),
+      included: z.array(z.enum(values(LOAN_INCLUDED), { error: 'Choose from the listed options.' })).max(20).default([])
+        .transform((a) => [...new Set(a)]),
+      included_note: z.preprocess(blank, z.string().trim().max(1000, 'Keep it under 1000 characters.').nullable().optional()),
+    }))).max(50, 'Keep it to 50 prices.').optional(),
 });
 
 const BUILDER_COLS = ['name', 'location', 'contact_person', 'phone', 'email', 'agreement_status', 'agreement_date', 'agreement_expiry', 'notes'];

@@ -15,6 +15,16 @@ export const PROJECT_STATUS = [
   { value: 'completed', label: 'Completed', tone: '' },
 ] as const;
 
+/** What a loan (installment) price can include — ticked as checkboxes. */
+export const LOAN_INCLUDED = [
+  { value: 'car_parking', label: 'Car parking' },
+  { value: 'facing', label: 'Facing charges' },
+  { value: 'view', label: 'View charges' },
+  { value: 'corner', label: 'Corner charges' },
+  { value: 'amenities_clubhouse', label: 'Amenities and clubhouse charges' },
+] as const;
+export const includedLabel = (v: string) => LOAN_INCLUDED.find((o) => o.value === v)?.label ?? v;
+
 export type AgreementStatus = (typeof AGREEMENT_STATUS)[number]['value'];
 export type ProjectStatus = (typeof PROJECT_STATUS)[number]['value'];
 

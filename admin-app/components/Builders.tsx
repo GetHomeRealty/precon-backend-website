@@ -6,14 +6,14 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  Download, Eye, FileText, Handshake, Mail, MapPin, Pencil, Phone, Plus, Save, Search, Trash2, Upload, User, X,
+  Check, Download, Eye, FileText, Handshake, Mail, MapPin, Pencil, Phone, Plus, Save, Search, Trash2, Upload, User, X,
 } from 'lucide-react';
 import { api, ApiError } from './api';
 import { Confirm, FieldWrap, fmtDate, useToast, useUnsavedWarning } from './ui';
 import { useRole } from './AdminShell';
 import {
-  AGREEMENT_MAX_BYTES, AGREEMENT_STATUS, PROJECT_STATUS, agreementLabel, agreementTone, fmtDay, fmtRupees, fmtRupeesShort, isPastDay,
-  parseRupees, projectLabel, projectTone,
+  AGREEMENT_MAX_BYTES, AGREEMENT_STATUS, LOAN_INCLUDED, PROJECT_STATUS, agreementLabel, agreementTone, fmtDay, fmtRupees, fmtRupeesShort,
+  includedLabel, isPastDay, parseRupees, projectLabel, projectTone,
 } from '@/lib/builder-options';
 
 type Row = Record<string, any>;
@@ -639,6 +639,14 @@ function ProjectsCard({ projects, onAdd, onEdit, onDelete, note }: {
   );
 }
 
+/** Labels of what a loan price includes (ticked options + the "other" note). */
+function loanIncluded(x: Row): string[] {
+  const ticked = Array.isArray(x.included) ? (x.included as string[]).map(includedLabel) : [];
+  const legacy = typeof x.included === 'string' && x.included.trim() ? [x.included.trim()] : [];
+  const note = typeof x.included_note === 'string' && x.included_note.trim() ? [x.included_note.trim()] : [];
+  return [...ticked, ...legacy, ...note];
+}
+
 /** OTP and loan prices on a project card. */
 function ProjectPrices({ p }: { p: Row }) {
   const otp: Row[] = Array.isArray(p.otp_prices) ? p.otp_prices : [];
@@ -660,10 +668,14 @@ function ProjectPrices({ p }: { p: Row }) {
         <div className="bp-price-box">
           <div className="bp-price-head">Loan prices <span className="muted">(installments)</span></div>
           <table><tbody>
-            {loan.map((x, i) => (
-              <tr key={i}><td className="bp-amt">{fmtRupees(x.base_price)}<span className="muted"> · {fmtRupeesShort(x.base_price)}</span><div className="sub">Base price</div></td>
-                <td>{x.included ? <><div className="sub">Included</div>{x.included}</> : <span className="muted">Nothing listed as included</span>}</td></tr>
-            ))}
+            {loan.map((x, i) => {
+              const inc = loanIncluded(x);
+              return (
+                <tr key={i}><td className="bp-amt">{fmtRupees(x.base_price)}<span className="muted"> · {fmtRupeesShort(x.base_price)}</span><div className="sub">Base price</div></td>
+                  <td>{inc.length ? <><div className="sub">Included</div><div className="bp-chips">{inc.map((t) => <span key={t} className="bp-chip"><Check size={12} />{t}</span>)}</div></>
+                    : <span className="muted">Nothing included</span>}</td></tr>
+              );
+            })}
           </tbody></table>
         </div>
       )}
@@ -678,7 +690,12 @@ function PriceRows({ kind, rows, errors, onChange }: {
   const key = kind === 'otp' ? 'otp_prices' : 'loan_prices';
   const amountKey = kind === 'otp' ? 'price' : 'base_price';
   const upd = (i: number, k: string, v: string) => onChange(rows.map((r, j) => (j === i ? { ...r, [k]: v } : r)));
-  const add = () => onChange([...rows, kind === 'otp' ? { description: '', price: '' } : { base_price: '', included: '' }]);
+  const add = () => onChange([...rows, kind === 'otp' ? { description: '', price: '' } : { base_price: '', included: [], included_note: '' }]);
+  const toggle = (i: number, v: string, on: boolean) => onChange(rows.map((r, j) => {
+    if (j !== i) return r;
+    const cur: string[] = Array.isArray(r.included) ? r.included : [];
+    return { ...r, included: on ? [...cur.filter((x) => x !== v), v] : cur.filter((x) => x !== v) };
+  }));
   return (
     <div className="span-6 bp-price-edit">
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -709,10 +726,23 @@ function PriceRows({ kind, rows, errors, onChange }: {
               {amount}
             </> : <>
               {amount}
-              <FieldWrap label="Included options" error={errors[`${key}.${i}.included`]} htmlFor={`${key}-${i}-inc`}>
-                <input id={`${key}-${i}-inc`} className="input" maxLength={1000} autoComplete="off"
-                  placeholder="e.g. Car parking, clubhouse, registration" value={r.included ?? ''} onChange={(e) => upd(i, 'included', e.target.value)} />
-              </FieldWrap>
+              <fieldset className="field bp-inc">
+                <legend>Included options</legend>
+                <div className="bp-checks">
+                  {LOAN_INCLUDED.map((o) => {
+                    const on = Array.isArray(r.included) && r.included.includes(o.value);
+                    return (
+                      <label key={o.value} className={`bp-check ${on ? 'on' : ''}`}>
+                        <input type="checkbox" checked={on} onChange={(e) => toggle(i, o.value, e.target.checked)} />{o.label}
+                      </label>
+                    );
+                  })}
+                </div>
+                <input id={`${key}-${i}-inc`} className="input" maxLength={1000} autoComplete="off" aria-label="Other included options"
+                  placeholder="Other (optional), e.g. registration, GST" value={r.included_note ?? ''} onChange={(e) => upd(i, 'included_note', e.target.value)} />
+                {errors[`${key}.${i}.included`] && <span className="err" role="alert">{errors[`${key}.${i}.included`]}</span>}
+                {errors[`${key}.${i}.included_note`] && <span className="err" role="alert">{errors[`${key}.${i}.included_note`]}</span>}
+              </fieldset>
             </>}
             <button type="button" className="icon-btn" title="Remove this price" aria-label="Remove this price"
               onClick={() => onChange(rows.filter((_, j) => j !== i))}><Trash2 size={15} /></button>
@@ -753,7 +783,12 @@ function ProjectDialog({ builderId, builder, project, onClose, onSaved, onLocal 
     // Saved amounts open as "1,25,00,000" rather than "12500000".
     const grp = (v: unknown) => (typeof v === 'number' ? v.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : v ?? '');
     init.otp_prices = (init.otp_prices as Row[]).map((r) => ({ ...r, price: grp(r.price) }));
-    init.loan_prices = (init.loan_prices as Row[]).map((r) => ({ ...r, base_price: grp(r.base_price) }));
+    // Older rows kept "included" as free text: show it in the "Other" box.
+    init.loan_prices = (init.loan_prices as Row[]).map((r) => ({
+      ...r, base_price: grp(r.base_price),
+      included: Array.isArray(r.included) ? r.included : [],
+      included_note: r.included_note ?? (typeof r.included === 'string' ? r.included : ''),
+    }));
     return init;
   });
   const [errors, setErrors] = useState<Errors>({});
@@ -797,7 +832,11 @@ function ProjectDialog({ builderId, builder, project, onClose, onSaved, onLocal 
     const clean = {
       ...p, name: p.name.trim(),
       otp_prices: (p.otp_prices as Row[]).map((r) => ({ description: String(r.description).trim(), price: parseRupees(r.price) })),
-      loan_prices: (p.loan_prices as Row[]).map((r) => ({ base_price: parseRupees(r.base_price), included: String(r.included ?? '').trim() || null })),
+      loan_prices: (p.loan_prices as Row[]).map((r) => ({
+        base_price: parseRupees(r.base_price),
+        included: Array.isArray(r.included) ? r.included : [],
+        included_note: String(r.included_note ?? '').trim() || null,
+      })),
     };
     if (onLocal) { onLocal({ ...project, ...clean }); return; }
     setSaving(true); setError('');

@@ -399,3 +399,14 @@ table.tbl { width: 100%; border-collapse: collapse; }
   .bp-price-row .icon-btn { grid-column: 2; grid-row: 1; }
 }
 .bp-price-box .sub { font-size: 11.5px; font-weight: 500; color: var(--ink-2); }
+/* Loan price: included options as checkboxes */
+fieldset.bp-inc { border: 0; padding: 0; margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+fieldset.bp-inc legend { padding: 0; margin-bottom: 6px; font-size: 13px; font-weight: 600; }
+.bp-checks { display: flex; flex-wrap: wrap; gap: 8px; }
+.bp-check { display: inline-flex; align-items: center; gap: 7px; padding: 7px 11px; border: 1px solid var(--line-strong); border-radius: 8px;
+  font-size: 13.5px; font-weight: 500; cursor: pointer; background: #fff; user-select: none; }
+.bp-check input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.bp-check.on { border-color: var(--accent); background: #fff5f5; }
+.bp-check:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
+.bp-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 3px; }
+.bp-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; background: #eef7f0; color: #1f6b3a; font-size: 12.5px; font-weight: 600; }
