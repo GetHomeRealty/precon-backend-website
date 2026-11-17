@@ -12,7 +12,8 @@ import { api, ApiError } from './api';
 import { Confirm, FieldWrap, fmtDate, useToast, useUnsavedWarning } from './ui';
 import { useRole } from './AdminShell';
 import {
-  AGREEMENT_MAX_BYTES, AGREEMENT_STATUS, PROJECT_STATUS, agreementLabel, agreementTone, fmtDay, isPastDay, projectLabel, projectTone,
+  AGREEMENT_MAX_BYTES, AGREEMENT_STATUS, PROJECT_STATUS, agreementLabel, agreementTone, fmtDay, fmtRupees, fmtRupeesShort, isPastDay,
+  parseRupees, projectLabel, projectTone,
 } from '@/lib/builder-options';
 
 type Row = Record<string, any>;
@@ -622,6 +623,7 @@ function ProjectsCard({ projects, onAdd, onEdit, onDelete, note }: {
                         {p.contact_email && <a href={`mailto:${p.contact_email}`}><Mail size={13} />{p.contact_email}</a>}
                       </div>
                       {p.description && <p className="bp-desc">{p.description}</p>}
+                      <ProjectPrices p={p} />
                       {p.website_slug && <div className="bp-meta">{p.website_published
                         ? <a href={`/projects/${p.website_slug}`} target="_blank" rel="noreferrer"><Eye size={13} />View on website</a>
                         : <Link href={`/admin/projects/${p.project_id}`}><Eye size={13} />Website listing (draft)</Link>}</div>}
@@ -637,10 +639,108 @@ function ProjectsCard({ projects, onAdd, onEdit, onDelete, note }: {
   );
 }
 
+/** OTP and loan prices on a project card. */
+function ProjectPrices({ p }: { p: Row }) {
+  const otp: Row[] = Array.isArray(p.otp_prices) ? p.otp_prices : [];
+  const loan: Row[] = Array.isArray(p.loan_prices) ? p.loan_prices : [];
+  if (!otp.length && !loan.length) return null;
+  return (
+    <div className="bp-prices">
+      {otp.length > 0 && (
+        <div className="bp-price-box">
+          <div className="bp-price-head">OTP prices <span className="muted">(one-time payment)</span></div>
+          <table><tbody>
+            {otp.map((x, i) => (
+              <tr key={i}><td>{x.description}</td><td className="bp-amt">{fmtRupees(x.price)}<span className="muted"> · {fmtRupeesShort(x.price)}</span></td></tr>
+            ))}
+          </tbody></table>
+        </div>
+      )}
+      {loan.length > 0 && (
+        <div className="bp-price-box">
+          <div className="bp-price-head">Loan prices <span className="muted">(installments)</span></div>
+          <table><tbody>
+            {loan.map((x, i) => (
+              <tr key={i}><td className="bp-amt">{fmtRupees(x.base_price)}<span className="muted"> · {fmtRupeesShort(x.base_price)}</span><div className="sub">Base price</div></td>
+                <td>{x.included ? <><div className="sub">Included</div>{x.included}</> : <span className="muted">Nothing listed as included</span>}</td></tr>
+            ))}
+          </tbody></table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Editable rows of prices inside the project dialog. */
+function PriceRows({ kind, rows, errors, onChange }: {
+  kind: 'otp' | 'loan'; rows: Row[]; errors: Errors; onChange: (rows: Row[]) => void;
+}) {
+  const key = kind === 'otp' ? 'otp_prices' : 'loan_prices';
+  const amountKey = kind === 'otp' ? 'price' : 'base_price';
+  const upd = (i: number, k: string, v: string) => onChange(rows.map((r, j) => (j === i ? { ...r, [k]: v } : r)));
+  const add = () => onChange([...rows, kind === 'otp' ? { description: '', price: '' } : { base_price: '', included: '' }]);
+  return (
+    <div className="span-6 bp-price-edit">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span className="section-title" style={{ margin: 0 }}>
+          {kind === 'otp' ? 'OTP prices (one-time payment)' : 'Loan prices (installments)'}
+        </span>
+        <button type="button" className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }} onClick={add}>
+          <Plus size={14} />{kind === 'otp' ? 'Add OTP price' : 'Add loan price'}</button>
+      </div>
+      {errors[key] && <span className="err" role="alert">{errors[key]}</span>}
+      {!rows.length && <p className="muted bp-none">{kind === 'otp' ? 'No OTP prices added.' : 'No loan prices added.'}</p>}
+      {rows.map((r, i) => {
+        const amtErr = errors[`${key}.${i}.${amountKey}`];
+        const short = fmtRupeesShort(r[amountKey]);
+        const amount = (
+          <FieldWrap label={kind === 'otp' ? 'Price (₹)' : 'Base price (₹)'} required error={amtErr} help={short || undefined} htmlFor={`${key}-${i}-amt`}>
+            <input id={`${key}-${i}-amt`} className={`input ${amtErr ? 'invalid' : ''}`} inputMode="decimal" autoComplete="off" maxLength={20}
+              placeholder="e.g. 85,00,000" value={r[amountKey] ?? ''} onChange={(e) => upd(i, amountKey, e.target.value)} />
+          </FieldWrap>
+        );
+        return (
+          <div key={i} className={`bp-price-row ${kind}`}>
+            {kind === 'otp' ? <>
+              <FieldWrap label="Description" required error={errors[`${key}.${i}.description`]} htmlFor={`${key}-${i}-desc`}>
+                <input id={`${key}-${i}-desc`} className={`input ${errors[`${key}.${i}.description`] ? 'invalid' : ''}`} maxLength={300} autoComplete="off"
+                  placeholder="e.g. 3 BHK, 1,650 sq ft, east facing" value={r.description ?? ''} onChange={(e) => upd(i, 'description', e.target.value)} />
+              </FieldWrap>
+              {amount}
+            </> : <>
+              {amount}
+              <FieldWrap label="Included options" error={errors[`${key}.${i}.included`]} htmlFor={`${key}-${i}-inc`}>
+                <input id={`${key}-${i}-inc`} className="input" maxLength={1000} autoComplete="off"
+                  placeholder="e.g. Car parking, clubhouse, registration" value={r.included ?? ''} onChange={(e) => upd(i, 'included', e.target.value)} />
+              </FieldWrap>
+            </>}
+            <button type="button" className="icon-btn" title="Remove this price" aria-label="Remove this price"
+              onClick={() => onChange(rows.filter((_, j) => j !== i))}><Trash2 size={15} /></button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /* =====================================================================
    Add / edit project dialog
    ===================================================================== */
-const EMPTY_PROJECT = { name: '', location: '', status: 'ongoing', contact_person: '', contact_email: '', contact_phone: '', description: '' };
+const EMPTY_PROJECT = { name: '', location: '', status: 'ongoing', contact_person: '', contact_email: '', contact_phone: '', description: '',
+  otp_prices: [] as Row[], loan_prices: [] as Row[] };
+
+/** Check the price rows in the browser so mistakes show next to the field. */
+function priceErrors(p: Row): Errors {
+  const e: Errors = {};
+  (p.otp_prices as Row[]).forEach((r, i) => {
+    if (!String(r.description ?? '').trim()) e[`otp_prices.${i}.description`] = 'Enter what this price is for.';
+    if (parseRupees(r.price) === null) e[`otp_prices.${i}.price`] = 'Enter the price in rupees.';
+  });
+  (p.loan_prices as Row[]).forEach((r, i) => {
+    if (parseRupees(r.base_price) === null) e[`loan_prices.${i}.base_price`] = 'Enter the base price in rupees.';
+  });
+  return e;
+}
 
 function ProjectDialog({ builderId, builder, project, onClose, onSaved, onLocal }: {
   builderId: number | null; builder: Row; project: Row; onClose: () => void; onSaved: (msg: string) => void;
@@ -648,7 +748,14 @@ function ProjectDialog({ builderId, builder, project, onClose, onSaved, onLocal 
   onLocal?: (p: Row) => void;
 }) {
   const isNew = !project.id;
-  const [p, setP] = useState<Row>(() => ({ ...EMPTY_PROJECT, ...Object.fromEntries(Object.keys(EMPTY_PROJECT).map((k) => [k, project[k] ?? (EMPTY_PROJECT as Row)[k]])) }));
+  const [p, setP] = useState<Row>(() => {
+    const init: Row = { ...EMPTY_PROJECT, ...Object.fromEntries(Object.keys(EMPTY_PROJECT).map((k) => [k, project[k] ?? (EMPTY_PROJECT as Row)[k]])) };
+    // Saved amounts open as "1,25,00,000" rather than "12500000".
+    const grp = (v: unknown) => (typeof v === 'number' ? v.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : v ?? '');
+    init.otp_prices = (init.otp_prices as Row[]).map((r) => ({ ...r, price: grp(r.price) }));
+    init.loan_prices = (init.loan_prices as Row[]).map((r) => ({ ...r, base_price: grp(r.base_price) }));
+    return init;
+  });
   const [errors, setErrors] = useState<Errors>({});
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -662,6 +769,10 @@ function ProjectDialog({ builderId, builder, project, onClose, onSaved, onLocal 
   }, [onClose, saving]);
 
   const set = (k: string, v: string) => { setP((x) => ({ ...x, [k]: v })); setErrors((e) => ({ ...e, [k]: '' })); };
+  const setRows = (k: string, rows: Row[]) => {
+    setP((x) => ({ ...x, [k]: rows }));
+    setErrors((e) => Object.fromEntries(Object.entries(e).filter(([f]) => f !== k && !f.startsWith(k + '.'))));
+  };
   const field = (k: string, label: string, opts: { type?: string; required?: boolean; span?: string; placeholder?: string } = {}): ReactNode => (
     <FieldWrap label={label} required={opts.required} error={errors[k]} className={opts.span || 'span-3'} htmlFor={`p-${k}`}>
       <input id={`p-${k}`} ref={k === 'name' ? first : undefined} className={`input ${errors[k] ? 'invalid' : ''}`} type={opts.type || 'text'}
@@ -676,11 +787,23 @@ function ProjectDialog({ builderId, builder, project, onClose, onSaved, onLocal 
     e.preventDefault();
     e.stopPropagation(); // the dialog can open from inside the builder form
     if (!p.name.trim()) { setErrors({ name: 'Enter the project name.' }); first.current?.focus(); return; }
-    if (onLocal) { onLocal({ ...project, ...p, name: p.name.trim() }); return; }
+    const pe = priceErrors(p);
+    if (Object.keys(pe).length) {
+      setErrors(pe);
+      setTimeout(() => (document.querySelector('.modal .input.invalid') as HTMLInputElement | null)?.focus(), 0);
+      return;
+    }
+    // Amounts are stored as numbers ("85,00,000" → 8500000).
+    const clean = {
+      ...p, name: p.name.trim(),
+      otp_prices: (p.otp_prices as Row[]).map((r) => ({ description: String(r.description).trim(), price: parseRupees(r.price) })),
+      loan_prices: (p.loan_prices as Row[]).map((r) => ({ base_price: parseRupees(r.base_price), included: String(r.included ?? '').trim() || null })),
+    };
+    if (onLocal) { onLocal({ ...project, ...clean }); return; }
     setSaving(true); setError('');
     try {
       await api(isNew ? `/api/admin/builders/${builderId}/projects` : `/api/admin/builders/${builderId}/projects/${project.id}`,
-        { method: isNew ? 'POST' : 'PATCH', body: p });
+        { method: isNew ? 'POST' : 'PATCH', body: clean });
       onSaved(isNew ? 'Project added' : 'Project updated');
     } catch (err) {
       if (err instanceof ApiError) { setErrors(err.fields); setError(err.message); } else setError((err as Error).message);
@@ -716,6 +839,8 @@ function ProjectDialog({ builderId, builder, project, onClose, onSaved, onLocal 
           <FieldWrap label="Project description" className="span-6" htmlFor="p-desc" error={errors.description}>
             <textarea id="p-desc" className="textarea" rows={4} maxLength={10000} value={p.description} onChange={(e) => set('description', e.target.value)} />
           </FieldWrap>
+          <PriceRows kind="otp" rows={p.otp_prices} errors={errors} onChange={(rows) => setRows('otp_prices', rows)} />
+          <PriceRows kind="loan" rows={p.loan_prices} errors={errors} onChange={(rows) => setRows('loan_prices', rows)} />
         </div>
         <div className="actions" style={{ marginTop: 18 }}>
           <button type="button" className="btn" onClick={onClose} disabled={saving}>Cancel</button>

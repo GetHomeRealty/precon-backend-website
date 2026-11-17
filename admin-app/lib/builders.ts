@@ -12,6 +12,11 @@ const phone = z.preprocess(blank, z.string().trim().max(40)
   .regex(/^\+?[\d\s()./-]{6,}$/, 'Enter a valid phone number.').nullable().optional());
 const day = z.preprocess(blank, z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Pick a date.')
   .refine((d) => !Number.isNaN(Date.parse(d)), 'Pick a date.').nullable().optional());
+/** Rupee amount; accepts "85,00,000", "₹ 8500000" or a number. */
+const money = (what: string) => z.preprocess(
+  (v) => (typeof v === 'string' ? (v.replace(/[,\s₹]/g, '') === '' ? undefined : Number(v.replace(/[,\s₹]/g, ''))) : v),
+  z.number({ error: `Enter the ${what} in rupees.` }).finite(`Enter the ${what} in rupees.`)
+    .min(0, `Enter the ${what} in rupees.`).max(1e11, 'That amount is too large.'));
 const values = <T extends readonly { value: string }[]>(list: T) => list.map((o) => o.value) as [string, ...string[]];
 
 export const builderSchema = z.object({
@@ -35,10 +40,23 @@ export const projectSchema = z.object({
   contact_email: email,
   contact_phone: phone,
   description: text(10000),
+  /** One-time payment prices: what the price is for + the amount in rupees. */
+  otp_prices: z.array(z.object({
+    description: z.string({ error: 'Enter what this price is for.' }).trim().min(1, 'Enter what this price is for.').max(300),
+    price: money('price'),
+  })).max(50, 'Keep it to 50 prices.').optional(),
+  /** Loan (installment) prices: base price + what is included. */
+  loan_prices: z.array(z.object({
+    base_price: money('base price'),
+    included: z.preprocess(blank, z.string().trim().max(1000, 'Keep it under 1000 characters.').nullable().optional()),
+  })).max(50, 'Keep it to 50 prices.').optional(),
 });
 
 const BUILDER_COLS = ['name', 'location', 'contact_person', 'phone', 'email', 'agreement_status', 'agreement_date', 'agreement_expiry', 'notes'];
-const PROJECT_COLS = ['name', 'location', 'status', 'contact_person', 'contact_email', 'contact_phone', 'description'];
+const PROJECT_COLS = ['name', 'location', 'status', 'contact_person', 'contact_email', 'contact_phone', 'description', 'otp_prices', 'loan_prices'];
+const JSON_COLS = new Set(['otp_prices', 'loan_prices']);
+/** jsonb columns are sent as JSON text (the driver would otherwise send a Postgres array). */
+const dbVal = (k: string, v: unknown) => (JSON_COLS.has(k) ? JSON.stringify(v ?? []) : v ?? null);
 
 /** Dates come back as plain "YYYY-MM-DD"; the private file key is never sent to the browser. */
 const BUILDER_SELECT = `b.id, b.name, b.location, b.contact_person, b.phone, b.email, b.agreement_status,
@@ -87,6 +105,7 @@ export async function getBuilder(id: number) {
   if (!b) throw new HttpError(404, 'This builder no longer exists.');
   const projects = await q(
     `select bp.id, bp.name, bp.location, bp.status, bp.contact_person, bp.contact_email, bp.contact_phone, bp.description,
+            bp.otp_prices, bp.loan_prices,
             bp.created_at, bp.updated_at, bp.project_id, p.slug as website_slug, p.is_published as website_published
        from builder_projects bp left join projects p on p.id = bp.project_id
       where bp.builder_id = $1 order by lower(bp.name), bp.id`, [id]);
@@ -180,7 +199,7 @@ export async function deleteBuilder(id: number) {
 export async function createProject(builderId: number, body: unknown, adminId: number) {
   await getBuilder(builderId);
   const data = projectSchema.parse(body) as Record<string, unknown>;
-  const vals = PROJECT_COLS.map((k) => data[k] ?? null);
+  const vals = PROJECT_COLS.map((k) => dbVal(k, data[k]));
   const row = await one(
     `insert into builder_projects (builder_id, ${PROJECT_COLS.join(', ')}, created_by, updated_by)
      values ($1, ${PROJECT_COLS.map((_, i) => `$${i + 2}`).join(', ')}, $${PROJECT_COLS.length + 2}, $${PROJECT_COLS.length + 2})
@@ -192,7 +211,8 @@ export async function updateProject(builderId: number, id: number, body: unknown
   const cur = await one(`select ${PROJECT_COLS.join(', ')} from builder_projects where id = $1 and builder_id = $2`, [id, builderId]);
   if (!cur) throw new HttpError(404, 'This project no longer exists.');
   const merged = projectSchema.parse({ ...cur, ...(body as object) }) as Record<string, unknown>;
-  const { sets, vals } = assignments(PROJECT_COLS, merged, 3);
+  const { sets, keys, vals } = assignments(PROJECT_COLS, merged, 3);
+  keys.forEach((k, i) => { vals[i] = dbVal(k, vals[i]); });
   await q(`update builder_projects set ${sets.join(', ')}, updated_at = now(), updated_by = $${vals.length + 3}
             where id = $1 and builder_id = $2`, [id, builderId, ...vals, adminId]);
   return { id, name: merged.name as string };

@@ -33,6 +33,30 @@ export function fmtDay(d: string | null | undefined) {
   return new Date(Date.UTC(y, m - 1, day)).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 }
 
+/** Parse a typed amount: "85,00,000" / "₹ 8500000" → 8500000; anything else → null. */
+export function parseRupees(v: unknown): number | null {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  const s = String(v ?? '').replace(/[,\s₹]/g, '');
+  if (!s || !/^\d+(\.\d+)?$/.test(s)) return null;
+  return Number(s);
+}
+
+/** 8500000 → "₹85,00,000" (Indian digit grouping). */
+export function fmtRupees(v: unknown) {
+  const n = parseRupees(v);
+  return n === null ? '' : '₹' + n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+}
+
+/** 8500000 → "₹85 L", 12500000 → "₹1.25 Cr" (short form shown beside the full amount). */
+export function fmtRupeesShort(v: unknown) {
+  const n = parseRupees(v);
+  if (n === null) return '';
+  const r = (x: number) => x.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  if (n >= 1e7) return `₹${r(n / 1e7)} Cr`;
+  if (n >= 1e5) return `₹${r(n / 1e5)} L`;
+  return '₹' + r(n);
+}
+
 /** True when the expiry date is before today (local calendar day). */
 export function isPastDay(d: string | null | undefined) {
   if (!d) return false;

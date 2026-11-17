@@ -433,6 +433,9 @@ create index if not exists builder_projects_fk on builder_projects(builder_id, s
 -- Projects imported from the website's project list keep a link to it (one entry per website project).
 alter table builder_projects add column if not exists project_id integer references projects(id) on delete set null;
 create unique index if not exists builder_projects_project_key on builder_projects(project_id);
+-- Prices: OTP (one-time payment) = [{description, price}], Loan (installments) = [{base_price, included}]
+alter table builder_projects add column if not exists otp_prices  jsonb not null default '[]'::jsonb;
+alter table builder_projects add column if not exists loan_prices jsonb not null default '[]'::jsonb;
 
 -- ---------- lock down Supabase's auto-generated REST API ----------
 -- The app talks to Postgres directly with the server-side connection string
