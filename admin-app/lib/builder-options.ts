@@ -21,7 +21,10 @@ export const LOAN_INCLUDED = [
   { value: 'facing', label: 'Facing charges' },
   { value: 'view', label: 'View charges' },
   { value: 'corner', label: 'Corner charges' },
-  { value: 'amenities_clubhouse', label: 'Amenities and clubhouse charges' },
+  { value: 'floor_rise', label: 'Floor rise charges' },
+  { value: 'infrastructure', label: 'Infrastructure charges' },
+  { value: 'amenities', label: 'Amenities charges' },
+  { value: 'clubhouse', label: 'Clubhouse charges' },
 ] as const;
 export const includedLabel = (v: string) => LOAN_INCLUDED.find((o) => o.value === v)?.label ?? v;
 
@@ -65,6 +68,28 @@ export function fmtRupeesShort(v: unknown) {
   if (n >= 1e7) return `₹${r(n / 1e7)} Cr`;
   if (n >= 1e5) return `₹${r(n / 1e5)} L`;
   return '₹' + r(n);
+}
+
+/** "2.5" / "2.5%" → 2.5; blank or not a number → null. */
+export function parsePct(v: unknown): number | null {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  const s = String(v ?? '').replace(/[%\s]/g, '');
+  if (!s || !/^\d+(\.\d+)?$/.test(s)) return null;
+  return Number(s);
+}
+
+/**
+ * Loan price breakdown: each ticked option with a percentage becomes a rupee amount
+ * (percentage of the base price, rounded to the rupee); total = base price + those amounts.
+ */
+export function loanBreakdown(base: unknown, included: string[], rates: Record<string, unknown> = {}) {
+  const b = parseRupees(base);
+  const lines = included.map((v) => {
+    const pct = parsePct(rates[v]);
+    return { value: v, pct, amount: b !== null && pct !== null ? Math.round((b * pct) / 100) : null };
+  });
+  const charges = lines.reduce((n, l) => n + (l.amount ?? 0), 0);
+  return { lines, charges, total: b === null ? null : b + charges };
 }
 
 /** True when the expiry date is before today (local calendar day). */

@@ -13,7 +13,7 @@ import { Confirm, FieldWrap, fmtDate, useToast, useUnsavedWarning } from './ui';
 import { useRole } from './AdminShell';
 import {
   AGREEMENT_MAX_BYTES, AGREEMENT_STATUS, LOAN_INCLUDED, PROJECT_STATUS, agreementLabel, agreementTone, fmtDay, fmtRupees, fmtRupeesShort,
-  includedLabel, isPastDay, parseRupees, projectLabel, projectTone,
+  includedLabel, isPastDay, loanBreakdown, parsePct, parseRupees, projectLabel, projectTone,
 } from '@/lib/builder-options';
 
 type Row = Record<string, any>;
@@ -639,12 +639,17 @@ function ProjectsCard({ projects, onAdd, onEdit, onDelete, note }: {
   );
 }
 
-/** Labels of what a loan price includes (ticked options + the "other" note). */
-function loanIncluded(x: Row): string[] {
-  const ticked = Array.isArray(x.included) ? (x.included as string[]).map(includedLabel) : [];
-  const legacy = typeof x.included === 'string' && x.included.trim() ? [x.included.trim()] : [];
-  const note = typeof x.included_note === 'string' && x.included_note.trim() ? [x.included_note.trim()] : [];
-  return [...ticked, ...legacy, ...note];
+/** What a loan price includes: ticked options (with % and amount) + the "other" note. */
+function loanIncluded(x: Row) {
+  const { lines, charges, total } = loanBreakdown(x.base_price, Array.isArray(x.included) ? x.included : [], x.rates || {});
+  const chips = lines.map((l) => ({
+    key: l.value,
+    text: includedLabel(l.value) + (l.pct !== null ? ` ${l.pct}%` : ''),
+    amount: l.amount !== null ? fmtRupees(l.amount) : '',
+  }));
+  const extra = [typeof x.included === 'string' ? x.included : '', x.included_note].filter((t) => typeof t === 'string' && t.trim());
+  extra.forEach((t, i) => chips.push({ key: `note-${i}`, text: String(t).trim(), amount: '' }));
+  return { chips, charges, total };
 }
 
 /** OTP and loan prices on a project card. */
@@ -671,8 +676,11 @@ function ProjectPrices({ p }: { p: Row }) {
             {loan.map((x, i) => {
               const inc = loanIncluded(x);
               return (
-                <tr key={i}><td className="bp-amt">{fmtRupees(x.base_price)}<span className="muted"> · {fmtRupeesShort(x.base_price)}</span><div className="sub">Base price</div></td>
-                  <td>{inc.length ? <><div className="sub">Included</div><div className="bp-chips">{inc.map((t) => <span key={t} className="bp-chip"><Check size={12} />{t}</span>)}</div></>
+                <tr key={i}><td className="bp-amt">{fmtRupees(x.base_price)}<span className="muted"> · {fmtRupeesShort(x.base_price)}</span><div className="sub">Base price</div>
+                  {inc.charges > 0 && inc.total !== null && <div className="bp-total">{fmtRupees(inc.total)}<span className="muted"> · {fmtRupeesShort(inc.total)}</span>
+                    <div className="sub">Total with charges</div></div>}</td>
+                  <td>{inc.chips.length ? <><div className="sub">Included</div><ul className="bp-inc-lines">{inc.chips.map((c) => (
+                    <li key={c.key}><Check size={13} /><span>{c.text}</span>{c.amount && <b>{c.amount}</b>}</li>))}</ul></>
                     : <span className="muted">Nothing included</span>}</td></tr>
               );
             })}
@@ -696,6 +704,8 @@ function PriceRows({ kind, rows, errors, onChange }: {
     const cur: string[] = Array.isArray(r.included) ? r.included : [];
     return { ...r, included: on ? [...cur.filter((x) => x !== v), v] : cur.filter((x) => x !== v) };
   }));
+  const setRate = (i: number, v: string, val: string) =>
+    onChange(rows.map((r, j) => (j === i ? { ...r, rates: { ...(r.rates || {}), [v]: val } } : r)));
   return (
     <div className="span-6 bp-price-edit">
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -731,13 +741,36 @@ function PriceRows({ kind, rows, errors, onChange }: {
                 <div className="bp-checks">
                   {LOAN_INCLUDED.map((o) => {
                     const on = Array.isArray(r.included) && r.included.includes(o.value);
+                    const pctErr = errors[`${key}.${i}.rates.${o.value}`];
+                    const pct = parsePct(r.rates?.[o.value]);
+                    const base = parseRupees(r.base_price);
                     return (
-                      <label key={o.value} className={`bp-check ${on ? 'on' : ''}`}>
-                        <input type="checkbox" checked={on} onChange={(e) => toggle(i, o.value, e.target.checked)} />{o.label}
-                      </label>
+                      <div key={o.value} className={`bp-check-row ${on ? 'on' : ''}`}>
+                        <label className={`bp-check ${on ? 'on' : ''}`}>
+                          <input type="checkbox" checked={on} onChange={(e) => toggle(i, o.value, e.target.checked)} />{o.label}
+                        </label>
+                        {on && <>
+                          <span className="bp-pct">
+                            <input className={`input ${pctErr ? 'invalid' : ''}`} inputMode="decimal" maxLength={6} autoComplete="off" placeholder="0"
+                              aria-label={`${o.label} percentage of base price`} value={r.rates?.[o.value] ?? ''}
+                              onChange={(e) => setRate(i, o.value, e.target.value)} />%
+                          </span>
+                          <span className="bp-calc">{pct !== null && base !== null ? `= ${fmtRupees(Math.round((base * pct) / 100))}` : pct !== null ? 'Enter the base price' : 'Optional'}</span>
+                          {pctErr && <span className="err" role="alert">{pctErr}</span>}
+                        </>}
+                      </div>
                     );
                   })}
                 </div>
+                {(() => {
+                  const b = loanBreakdown(r.base_price, Array.isArray(r.included) ? r.included : [], r.rates || {});
+                  return b.charges > 0 && b.total !== null ? (
+                    <div className="bp-sum">
+                      <span>Base price {fmtRupees(parseRupees(r.base_price))} + charges {fmtRupees(b.charges)}</span>
+                      <b>Total price {fmtRupees(b.total)} <span className="muted">({fmtRupeesShort(b.total)})</span></b>
+                    </div>
+                  ) : null;
+                })()}
                 <input id={`${key}-${i}-inc`} className="input" maxLength={1000} autoComplete="off" aria-label="Other included options"
                   placeholder="Other (optional), e.g. registration, GST" value={r.included_note ?? ''} onChange={(e) => upd(i, 'included_note', e.target.value)} />
                 {errors[`${key}.${i}.included`] && <span className="err" role="alert">{errors[`${key}.${i}.included`]}</span>}
@@ -768,6 +801,11 @@ function priceErrors(p: Row): Errors {
   });
   (p.loan_prices as Row[]).forEach((r, i) => {
     if (parseRupees(r.base_price) === null) e[`loan_prices.${i}.base_price`] = 'Enter the base price in rupees.';
+    for (const v of (Array.isArray(r.included) ? r.included : []) as string[]) {
+      const raw = String(r.rates?.[v] ?? '').trim();
+      const n = parsePct(raw);
+      if (raw && (n === null || n > 100)) e[`loan_prices.${i}.rates.${v}`] = 'Enter a percentage from 0 to 100.';
+    }
   });
   return e;
 }
@@ -836,6 +874,9 @@ function ProjectDialog({ builderId, builder, project, onClose, onSaved, onLocal 
         base_price: parseRupees(r.base_price),
         included: Array.isArray(r.included) ? r.included : [],
         included_note: String(r.included_note ?? '').trim() || null,
+        // Only ticked options keep a percentage; blank boxes are left out.
+        rates: Object.fromEntries(((Array.isArray(r.included) ? r.included : []) as string[])
+          .map((v) => [v, parsePct(r.rates?.[v])]).filter(([, n]) => n !== null)),
       })),
     };
     if (onLocal) { onLocal({ ...project, ...clean }); return; }

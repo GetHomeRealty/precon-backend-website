@@ -55,7 +55,14 @@ export const projectSchema = z.object({
       included: z.array(z.enum(values(LOAN_INCLUDED), { error: 'Choose from the listed options.' })).max(20).default([])
         .transform((a) => [...new Set(a)]),
       included_note: z.preprocess(blank, z.string().trim().max(1000, 'Keep it under 1000 characters.').nullable().optional()),
-    }))).max(50, 'Keep it to 50 prices.').optional(),
+      /** Percentage of the base price for each ticked option, e.g. { facing: 2 }. Blank = no percentage. */
+      rates: z.preprocess(
+        (v) => (v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).filter(([, x]) => x !== '' && x !== null && x !== undefined)) : {}),
+        z.record(z.string(), z.preprocess((x) => (typeof x === 'string' ? Number(x.replace(/[%\s]/g, '')) : x),
+          z.number({ error: 'Enter a percentage from 0 to 100.' }).finite('Enter a percentage from 0 to 100.')
+            .min(0, 'Enter a percentage from 0 to 100.').max(100, 'Enter a percentage from 0 to 100.')))),
+    }).transform((o) => ({ ...o, rates: Object.fromEntries(Object.entries(o.rates).filter(([k]) => o.included.includes(k as never))) }))))
+    .max(50, 'Keep it to 50 prices.').optional(),
 });
 
 const BUILDER_COLS = ['name', 'location', 'contact_person', 'phone', 'email', 'agreement_status', 'agreement_date', 'agreement_expiry', 'notes'];
