@@ -1,6 +1,6 @@
 // Builder Management — server side: validation and database access.
 import { z } from 'zod';
-import { one, plain, q, type Row } from './db';
+import { one, plain, q, tx, type Row } from './db';
 import { HttpError } from './http';
 import { AGREEMENT_STATUS, PROJECT_STATUS } from './builder-options';
 
@@ -86,9 +86,47 @@ export async function getBuilder(id: number) {
   const b = await one(`select ${BUILDER_SELECT} from builders b where b.id = $1`, [id]);
   if (!b) throw new HttpError(404, 'This builder no longer exists.');
   const projects = await q(
-    `select id, name, location, status, contact_person, contact_email, contact_phone, description, created_at, updated_at
-       from builder_projects where builder_id = $1 order by lower(name), id`, [id]);
+    `select bp.id, bp.name, bp.location, bp.status, bp.contact_person, bp.contact_email, bp.contact_phone, bp.description,
+            bp.created_at, bp.updated_at, bp.project_id, p.slug as website_slug, p.is_published as website_published
+       from builder_projects bp left join projects p on p.id = bp.project_id
+      where bp.builder_id = $1 order by lower(bp.name), bp.id`, [id]);
   return { ...plain(b), projects: projects.map((r) => plain(r)) } as Row & { projects: Row[] };
+}
+
+/**
+ * Bring the website's projects into Builder Management: one builder per developer name
+ * (matched case-insensitively), and one builder project per website project with its
+ * location and the contact number saved on it. Safe to run again: projects already
+ * imported (linked by project_id) are skipped, nothing existing is overwritten.
+ */
+export async function importWebsiteProjects(adminId: number) {
+  return tx(async (t) => {
+    const builders = await t.query(
+      `insert into builders (name, location, created_by, updated_by)
+       select min(trim(p.developer)), mode() within group (order by p.city), $1, $1
+         from projects p
+        where coalesce(trim(p.developer), '') <> ''
+          and not exists (select 1 from builders b where lower(trim(b.name)) = lower(trim(p.developer)))
+        group by lower(trim(p.developer))
+       returning id`, [adminId]);
+    const projects = await t.query(
+      `insert into builder_projects (builder_id, project_id, name, location, status, contact_phone, created_by, updated_by)
+       select b.id, p.id, p.name,
+              nullif(concat_ws(', ', nullif(trim(p.location), ''), nullif(trim(p.city), '')), ''),
+              case when p.status = 'upcoming' then 'upcoming'
+                   when p.possession ilike 'ready%' then 'completed' else 'ongoing' end,
+              coalesce(nullif(trim(p.extra->>'phoneDisp'), ''), nullif('+' || trim(p.extra->>'phone'), '+')),
+              $1, $1
+         from projects p
+         join lateral (select id from builders b where lower(trim(b.name)) = lower(trim(p.developer)) order by id limit 1) b on true
+        where not exists (select 1 from builder_projects bp where bp.project_id = p.id)
+       returning id, contact_phone`, [adminId]);
+    return {
+      builders: builders.length,
+      projects: projects.length,
+      withPhone: projects.filter((r) => r.contact_phone).length,
+    };
+  });
 }
 
 function assignments(cols: string[], data: Record<string, unknown>, start: number) {

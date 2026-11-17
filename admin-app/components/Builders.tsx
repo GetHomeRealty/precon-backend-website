@@ -72,6 +72,9 @@ export function BuilderList() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [qText, setQText] = useState(sp.get('q') || '');
+  const [askImport, setAskImport] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const toast = useToast();
   const query = sp.toString();
 
   const load = useCallback(async () => {
@@ -95,6 +98,18 @@ export function BuilderList() {
     return () => clearTimeout(t);
   }, [qText, setParam]);
 
+  async function runImport() {
+    setImporting(true);
+    try {
+      const r = await api<{ builders: number; projects: number; withPhone: number }>('/api/admin/builders/import', { method: 'POST' });
+      toast(r.projects || r.builders
+        ? `Imported ${r.projects} project${r.projects === 1 ? '' : 's'} (${r.withPhone} with a contact number) and ${r.builders} new builder${r.builders === 1 ? '' : 's'}`
+        : 'Everything is already imported — no new website projects.');
+      setAskImport(false); load();
+    } catch (e) { toast((e as Error).message, 'err'); }
+    finally { setImporting(false); }
+  }
+
   const total = data ? Object.values(data.counts).reduce((a, b) => a + b, 0) : 0;
   const status = sp.get('status') || '';
   const filtered = !!(sp.get('q') || sp.get('location') || status);
@@ -106,7 +121,10 @@ export function BuilderList() {
           <h1>Builders</h1>
           <p>Builders you work with, their contract agreements and their projects. Internal only — nothing here appears on the website.</p>
         </div>
-        <div className="actions"><Link className="btn btn-primary" href="/admin/builders/new"><Plus size={16} />Add Builder</Link></div>
+        <div className="actions">
+          <button className="btn" onClick={() => setAskImport(true)}><Download size={16} />Import website projects</button>
+          <Link className="btn btn-primary" href="/admin/builders/new"><Plus size={16} />Add Builder</Link>
+        </div>
       </div>
 
       <div className="status-pills" style={{ marginBottom: 14 }} role="group" aria-label="Agreement status">
@@ -178,6 +196,10 @@ export function BuilderList() {
         )}
         {data && data.items.length > 0 && <div className="pager"><span>{data.items.length} builder{data.items.length === 1 ? '' : 's'}{filtered ? ` (of ${total})` : ''}</span></div>}
       </section>
+
+      <Confirm open={askImport} busy={importing} title="Import projects from the website?" confirmLabel="Import"
+        body="Each project in Website content → Projects is added under its builder, with its location and contact number. Builders that don’t exist yet are created. Projects already imported are skipped and nothing you entered is changed."
+        onConfirm={runImport} onCancel={() => setAskImport(false)} />
     </>
   );
 }
@@ -459,10 +481,14 @@ export function BuilderProfile({ id }: { id: number }) {
                             <div className="bp-meta">
                               <span><MapPin size={13} />{p.location || <span className="muted">Location not set</span>}</span>
                               {p.contact_person && <span><User size={13} />{p.contact_person}</span>}
-                              {p.contact_phone && <a href={`tel:${String(p.contact_phone).replace(/[^\d+]/g, '')}`}><Phone size={13} />{p.contact_phone}</a>}
+                              {p.contact_phone ? <a className="bp-phone" href={`tel:${String(p.contact_phone).replace(/[^\d+]/g, '')}`}><Phone size={13} />{p.contact_phone}</a>
+                                : <span className="muted"><Phone size={13} />No contact number</span>}
                               {p.contact_email && <a href={`mailto:${p.contact_email}`}><Mail size={13} />{p.contact_email}</a>}
                             </div>
                             {p.description && <p className="bp-desc">{p.description}</p>}
+                            {p.website_slug && <div className="bp-meta">{p.website_published
+                              ? <a href={`/projects/${p.website_slug}`} target="_blank" rel="noreferrer"><Eye size={13} />View on website</a>
+                              : <Link href={`/admin/projects/${p.project_id}`}><Eye size={13} />Website listing (draft)</Link>}</div>}
                           </article>
                         ))}
                       </div>

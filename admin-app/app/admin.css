@@ -374,3 +374,4 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .bp-desc { margin: 8px 0 0; color: var(--ink-2); font-size: 13.5px; white-space: pre-wrap; }
 .bp-none { margin: 0; font-size: 13px; }
 .tbl.tbl-tight th, .tbl.tbl-tight td { padding-left: 11px; padding-right: 11px; }
+.bp-meta a.bp-phone { color: var(--accent); font-weight: 600; }
