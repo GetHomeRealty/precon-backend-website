@@ -436,3 +436,15 @@ fieldset.bp-inc legend { padding: 0; margin-bottom: 6px; font-size: 13px; font-w
 .bp-inc-lines li b { white-space: nowrap; }
 .bp-prices { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
 @media (max-width: 640px) { .bp-prices { grid-template-columns: 1fr; } }
+/* Prices always visible on project cards */
+.bp-price-btn { height: 30px; gap: 5px; color: var(--accent); border-color: var(--accent); font-weight: 700; }
+.bp-price-btn:hover { background: #fff5f5; }
+.bp-price-head { display: flex; align-items: center; gap: 6px; }
+.bp-price-link { margin-left: auto; display: inline-flex; align-items: center; gap: 3px; border: 0; background: none; padding: 2px 4px; cursor: pointer;
+  color: var(--accent); font: inherit; font-size: 12px; font-weight: 700; text-transform: none; letter-spacing: 0; }
+.bp-price-link:hover { text-decoration: underline; }
+.bp-price-box.empty { background: #fff; border-style: dashed; }
+.bp-price-empty { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 6px 0 2px; cursor: pointer; font: inherit; font-size: 13.5px; color: var(--ink-2); }
+.bp-price-empty b { color: var(--accent); margin-left: 4px; }
+.bp-price-edit.flash { animation: bpflash 1.6s ease-out 1; border-radius: 8px; }
+@keyframes bpflash { 0%, 40% { background: #fff1f1; box-shadow: 0 0 0 6px #fff1f1; } 100% { background: transparent; box-shadow: 0 0 0 6px transparent; } }

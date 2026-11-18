@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  Check, Download, Eye, FileText, Handshake, Mail, MapPin, Pencil, Phone, Plus, Save, Search, Trash2, Upload, User, X,
+  Check, Download, Eye, FileText, IndianRupee, Handshake, Mail, MapPin, Pencil, Phone, Plus, Save, Search, Trash2, Upload, User, X,
 } from 'lucide-react';
 import { api, ApiError } from './api';
 import { Confirm, FieldWrap, fmtDate, useToast, useUnsavedWarning } from './ui';
@@ -611,6 +611,8 @@ function ProjectsCard({ projects, onAdd, onEdit, onDelete, note }: {
                         <span className={`badge ${projectTone(p.status)}`}>{projectLabel(p.status)}</span>
                         {p.pending && <span className="badge warn plain">Saves with the builder</span>}
                         <div className="bp-ctl">
+                          <button type="button" className="btn btn-sm bp-price-btn" title="OTP and loan prices" onClick={() => onEdit({ ...p, _focus: 'otp' })}>
+                            <IndianRupee size={14} />Prices</button>
                           <button type="button" className="icon-btn" title="Edit project" aria-label={`Edit ${p.name}`} onClick={() => onEdit(p)}><Pencil size={15} /></button>
                           <button type="button" className="icon-btn" title="Delete project" aria-label={`Delete ${p.name}`} onClick={() => onDelete(p)}><Trash2 size={15} /></button>
                         </div>
@@ -623,7 +625,7 @@ function ProjectsCard({ projects, onAdd, onEdit, onDelete, note }: {
                         {p.contact_email && <a href={`mailto:${p.contact_email}`}><Mail size={13} />{p.contact_email}</a>}
                       </div>
                       {p.description && <p className="bp-desc">{p.description}</p>}
-                      <ProjectPrices p={p} />
+                      <ProjectPrices p={p} onEdit={(focus) => onEdit({ ...p, _focus: focus })} />
                       {p.website_slug && <div className="bp-meta">{p.website_published
                         ? <a href={`/projects/${p.website_slug}`} target="_blank" rel="noreferrer"><Eye size={13} />View on website</a>
                         : <Link href={`/admin/projects/${p.project_id}`}><Eye size={13} />Website listing (draft)</Link>}</div>}
@@ -653,15 +655,32 @@ function loanIncluded(x: Row) {
 }
 
 /** OTP and loan prices on a project card. */
-function ProjectPrices({ p }: { p: Row }) {
+function ProjectPrices({ p, onEdit }: { p: Row; onEdit: (focus: 'otp' | 'loan') => void }) {
   const otp: Row[] = Array.isArray(p.otp_prices) ? p.otp_prices : [];
   const loan: Row[] = Array.isArray(p.loan_prices) ? p.loan_prices : [];
-  if (!otp.length && !loan.length) return null;
+  const head = (kind: 'otp' | 'loan', has: boolean) => (
+    <div className="bp-price-head">
+      {kind === 'otp' ? <>OTP prices <span className="muted">(one-time payment)</span></> : <>Loan prices <span className="muted">(installments)</span></>}
+      {has && <button type="button" className="bp-price-link" onClick={() => onEdit(kind)}><Pencil size={12} />Edit</button>}
+    </div>
+  );
   return (
     <div className="bp-prices">
+      {!otp.length && (
+        <div className="bp-price-box empty">
+          {head('otp', false)}
+          <button type="button" className="bp-price-empty" onClick={() => onEdit('otp')}>No OTP prices yet. <b>+ Add OTP price</b></button>
+        </div>
+      )}
+      {!loan.length && (
+        <div className="bp-price-box empty" style={{ order: 2 }}>
+          {head('loan', false)}
+          <button type="button" className="bp-price-empty" onClick={() => onEdit('loan')}>No loan prices yet. <b>+ Add loan price</b></button>
+        </div>
+      )}
       {otp.length > 0 && (
         <div className="bp-price-box">
-          <div className="bp-price-head">OTP prices <span className="muted">(one-time payment)</span></div>
+          {head('otp', true)}
           <table><tbody>
             {otp.map((x, i) => (
               <tr key={i}><td>{x.description}</td><td className="bp-amt">{fmtRupees(x.price)}<span className="muted"> · {fmtRupeesShort(x.price)}</span></td></tr>
@@ -670,8 +689,8 @@ function ProjectPrices({ p }: { p: Row }) {
         </div>
       )}
       {loan.length > 0 && (
-        <div className="bp-price-box">
-          <div className="bp-price-head">Loan prices <span className="muted">(installments)</span></div>
+        <div className="bp-price-box" style={{ order: 2 }}>
+          {head('loan', true)}
           <table><tbody>
             {loan.map((x, i) => {
               const inc = loanIncluded(x);
@@ -707,7 +726,7 @@ function PriceRows({ kind, rows, errors, onChange }: {
   const setRate = (i: number, v: string, val: string) =>
     onChange(rows.map((r, j) => (j === i ? { ...r, rates: { ...(r.rates || {}), [v]: val } } : r)));
   return (
-    <div className="span-6 bp-price-edit">
+    <div className="span-6 bp-price-edit" id={`pd-${kind}`}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span className="section-title" style={{ margin: 0 }}>
           {kind === 'otp' ? 'OTP prices (one-time payment)' : 'Loan prices (installments)'}
@@ -834,8 +853,19 @@ function ProjectDialog({ builderId, builder, project, onClose, onSaved, onLocal 
   const [saving, setSaving] = useState(false);
   const first = useRef<HTMLInputElement>(null);
 
+  // Opened from "Prices": jump straight to the price section; otherwise start at the project name.
   useEffect(() => {
-    first.current?.focus();
+    const f = project._focus as string | undefined;
+    if (f) {
+      const sec = document.getElementById(`pd-${f}`);
+      sec?.scrollIntoView({ block: 'start' });
+      sec?.classList.add('flash');
+      (sec?.querySelector('input, button.btn') as HTMLElement | null)?.focus({ preventScroll: true });
+    } else first.current?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === 'Escape' && !saving) onClose(); };
     document.addEventListener('keydown', k);
     return () => document.removeEventListener('keydown', k);
@@ -879,7 +909,7 @@ function ProjectDialog({ builderId, builder, project, onClose, onSaved, onLocal 
           .map((v) => [v, parsePct(r.rates?.[v])]).filter(([, n]) => n !== null)),
       })),
     };
-    if (onLocal) { onLocal({ ...project, ...clean }); return; }
+    if (onLocal) { const { _focus: _f, ...rest } = project; onLocal({ ...rest, ...clean }); return; }
     setSaving(true); setError('');
     try {
       await api(isNew ? `/api/admin/builders/${builderId}/projects` : `/api/admin/builders/${builderId}/projects/${project.id}`,
