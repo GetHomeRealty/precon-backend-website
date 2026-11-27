@@ -12,7 +12,7 @@
     phone2:'+91 90328 27722',          // second office number, shown with the address
     email:'india@gethomerealty.ca',
     whatsapp:'https://wa.me/919963206933',
-    addr:'4th Floor, Plot no 49, Doyens Lakeside Township, Lingampalli, Serilingampally, Serilingampally, K.V.Rangareddy- 500019, Telangana, India',
+    addr:'4th Floor, Plot no 49, Doyens Lakeside Township, Lingampalli, Serilingampally, K.V.Rangareddy- 500019, Telangana, India',
     hours:'Open 24/7',
     // Where enquiry forms are saved (the admin app). Normally the site is served BY the
     // admin app, so the same-origin '/api/public/leads' is used. If these pages are ever
