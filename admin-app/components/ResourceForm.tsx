@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ExternalLink, Save, Trash2 } from 'lucide-react';
 import { api, ApiError } from './api';
 import { GalleryInput, ImageInput, PdfInput, type GalleryItem } from './media';
@@ -76,6 +76,32 @@ export default function ResourceForm({ resourceKey, id }: { resourceKey: string;
   }, [r, id, isNew]);
 
   const set = (name: string, v: unknown) => { setRec((x) => ({ ...x!, [name]: v })); setDirty(true); setErrors((e) => ({ ...e, [name]: '' })); };
+
+  // A pasted Google Maps link fills Latitude / Longitude, so the map pin and the link always agree.
+  const hasGeo = ['map_url', 'lat', 'lng'].every((n) => r.fields.some((f) => f.name === n));
+  const recRef = useRef(rec); recRef.current = rec;
+  const geoTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  async function pinFromLink(link: string) {
+    const cur = recRef.current || {};
+    if (!/^https?:\/\/\S+$/i.test(link)) return;
+    const qs = new URLSearchParams({ url: link, lat: String(cur.lat ?? ''), lng: String(cur.lng ?? ''),
+      location: String(cur.location || cur.address || ''), city: String(cur.city || '') });
+    try {
+      const g = await api<{ lat: number; lng: number; source: string; note?: string }>(`/api/admin/geo?${qs}`);
+      if ((recRef.current || {}).map_url !== link) return;          // the link changed again meanwhile
+      set('lat', g.lat); set('lng', g.lng);
+      toast(`Map pin set from the link: ${g.lat}, ${g.lng}${g.note ? ` — ${g.note}` : ''}`, g.note ? 'err' : undefined);
+    } catch (e) {
+      toast(`Couldn't read a location from that link — ${(e as Error).message}`, 'err');
+    }
+  }
+  const setField = (name: string, v: unknown) => {
+    set(name, v);
+    if (hasGeo && name === 'map_url') {
+      clearTimeout(geoTimer.current);
+      geoTimer.current = setTimeout(() => pinFromLink(String(v || '').trim()), 700);
+    }
+  };
   const setGallery = (name: string, v: GalleryItem[]) => { setRec((x) => ({ ...x!, galleries: { ...x!.galleries, [name]: v } })); setDirty(true); };
 
   function clientCheck(): Record<string, string> {
@@ -175,7 +201,7 @@ export default function ResourceForm({ resourceKey, id }: { resourceKey: string;
             <div className="card-body">
               <div className="form-grid">
                 {isSeo && r.seo && <SeoPanel resourceKey={r.key} id={isNew ? null : Number(id)} rec={rec} seo={rec} set={set} />}
-                {fields.map((f) => <FieldInput key={f.name} f={f} value={rec[f.name]} error={errors[f.name]} isNew={isNew} nameHint={nameHint} onChange={(v) => set(f.name, v)} />)}
+                {fields.map((f) => <FieldInput key={f.name} f={f} value={rec[f.name]} error={errors[f.name]} isNew={isNew} nameHint={nameHint} onChange={(v) => setField(f.name, v)} />)}
                 {fields.some((f) => f.name === 'brokerage_price') && <PricingSummary rec={rec} r={r} onUse={(v) => set(r.key === 'projects' ? 'public_price' : 'price', v)} />}
                 {gals.map((g) => (
                   <FieldWrap key={g.name} label={g.label} help={g.help} error={errors[`galleries.${g.name}`]} className="span-6">

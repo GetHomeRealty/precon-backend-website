@@ -733,8 +733,10 @@
       <p class="pm-where">${ICON.pin||''}<span>${esc([d.area,d.city].filter(Boolean).join(', '))}</span></p>
       ${has&&typeof L!=='undefined'?`<div class="pm-minimap" data-minimap></div>`:''}
       ${conn?`<div class="pm-sec"><h4>Nearby &amp; travel times</h4>${conn}</div>`:''}
-      ${has?`<a class="pm-planlink" href="https://www.google.com/maps/search/?api=1&query=${d.lat},${d.lng}" target="_blank" rel="noopener">${ICON.pin||''}Open in Google Maps</a>`:''}
-      <p class="pm-note" style="margin-top:1rem">Location shown at locality level.</p>
+      ${has||d.map?`<p class="pm-maplinks">
+        <a class="pm-planlink" href="${esc(d.map||`https://www.google.com/maps/search/?api=1&query=${d.lat},${d.lng}`)}" target="_blank" rel="noopener">${ICON.pin||''}Open in Google Maps</a>
+        ${has?`<a class="pm-planlink" href="https://www.google.com/maps/dir/?api=1&destination=${d.lat},${d.lng}" target="_blank" rel="noopener">Directions</a>`:''}</p>`:''}
+      ${d.map?'':`<p class="pm-note" style="margin-top:1rem">Location shown at locality level.</p>`}
     </div>`;
   }
   function slideAvailability(S){

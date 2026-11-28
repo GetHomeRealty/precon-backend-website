@@ -623,7 +623,7 @@ const GHR_DEVELOPERS = [
     lat:17.235, lng:78.438, rateLow:0,
     sizes:"On request", rate:"On request", scale:"Villas", exp:"\u2014", status:"\u2014", config:"Villas", kind:"Villa", phone:"917842057070", phoneDisp:"+91 78420 57070", website:"https://www.vertexviva.com/vertex-florenza.php" },
   { id:"hyd-vertex-calista", name:"Vertex Calista", developer:"Vertex Viva", city:"Hyderabad", area:"Maheshwaram",
-    lat:17.2367, lng:78.4395, rateLow:0,
+    lat:17.222538, lng:78.467547, rateLow:0,
     sizes:"On request", rate:"On request", scale:"Villas", exp:"\u2014", status:"\u2014", config:"Villas", kind:"Villa", phone:"", phoneDisp:"", website:"https://www.vertexviva.com/" },
   { id:"hyd-vertex-kingston", name:"Vertex Kingston Park", developer:"Vertex Viva", city:"Hyderabad", area:"Serilingampalle",
     lat:17.495, lng:78.3, rateLow:0,

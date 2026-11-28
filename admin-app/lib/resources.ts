@@ -137,7 +137,8 @@ export const RESOURCES: Record<string, Resource> = {
       { name: 'country', label: 'Country', type: 'text', section: 'Location', maxLength: 60, span: 2 },
       { name: 'lat', label: 'Latitude', type: 'number', section: 'Location', min: -90, max: 90, span: 2 },
       { name: 'lng', label: 'Longitude', type: 'number', section: 'Location', min: -180, max: 180, span: 2 },
-      { name: 'map_url', label: 'Google Maps link', type: 'url', section: 'Location', placeholder: 'https://maps.google.com/…', span: 6 },
+      { name: 'map_url', label: 'Google Maps link', type: 'url', section: 'Location', placeholder: 'https://maps.app.goo.gl/…', span: 6,
+        help: 'Paste the link from Google Maps → Share. Latitude and longitude fill in from it automatically.' },
       { name: 'bedrooms', label: 'Bedrooms', type: 'number', section: 'Details', min: 0, max: 50, integer: true, span: 2 },
       { name: 'bathrooms', label: 'Bathrooms', type: 'number', section: 'Details', min: 0, max: 50, span: 2 },
       { name: 'parking', label: 'Parking', type: 'number', section: 'Details', min: 0, max: 100, integer: true, span: 2 },
@@ -221,9 +222,10 @@ export const RESOURCES: Record<string, Resource> = {
       // 7 — Location
       { name: 'city', label: 'City', type: 'text', section: 'Location & Connectivity', required: true, maxLength: 80, help: 'Hyderabad and Visakhapatnam projects appear on that city’s map.', span: 2 },
       { name: 'location', label: 'Location / area', type: 'text', section: 'Location & Connectivity', maxLength: 120, placeholder: 'Kokapet', span: 4 },
-      { name: 'lat', label: 'Latitude', type: 'number', section: 'Location & Connectivity', min: -90, max: 90, help: 'Locality-level only.', span: 2 },
+      { name: 'lat', label: 'Latitude', type: 'number', section: 'Location & Connectivity', min: -90, max: 90, help: 'Filled from the map link (e.g. 17.4061). Can also be typed.', span: 2 },
       { name: 'lng', label: 'Longitude', type: 'number', section: 'Location & Connectivity', min: -180, max: 180, span: 2 },
-      { name: 'map_url', label: 'Map link', type: 'url', section: 'Location & Connectivity', span: 2 },
+      { name: 'map_url', label: 'Map link', type: 'url', section: 'Location & Connectivity', span: 2, placeholder: 'https://maps.app.goo.gl/…',
+        help: 'Paste the Google Maps share link — latitude and longitude fill in from it.' },
       { name: 'connectivity', label: 'Nearby & connectivity', type: 'connectivity', section: 'Location & Connectivity', span: 6 },
       // 8 — Availability
       { name: 'availability_status', label: 'Current availability', type: 'select', section: 'Availability / WhatsApp', required: true, default: 'on_request', options: AVAILABILITY, span: 3 },

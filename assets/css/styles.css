@@ -812,6 +812,7 @@ ul{margin:0;padding:0;list-style:none}
 .pm-plan span{display:block;font-size:.78rem;color:var(--slate);text-align:center;margin-top:.4rem;line-height:1.35}
 .pm-planlink{display:inline-flex;align-items:center;gap:.45rem;font-size:.88rem;font-weight:600;color:var(--red);text-decoration:none}
 .pm-planlink:hover{text-decoration:underline}
+.pm-maplinks{display:flex;flex-wrap:wrap;gap:.6rem 1.4rem;margin:0}
 .pm-planlink svg{width:16px;height:16px}
 /* amenity groups */
 .pm-amgroup+.pm-amgroup{margin-top:.75rem}

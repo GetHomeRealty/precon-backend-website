@@ -205,6 +205,8 @@ export async function projectPage(req: Request, slug: string) {
       ${mapPage ? `<a class="btn btn--ghost btn--sm" href="${mapPage}?project=${esc(p.slug)}">View on the ${esc(p.city)} map</a>` : ''}
       ${p.brochure_url ? `<a class="btn btn--ghost btn--sm" href="${esc(media(p.brochure_url))}" target="_blank" rel="noopener">Download brochure (PDF)</a>` : ''}
       ${p.video_url ? `<a class="btn btn--ghost btn--sm" href="${esc(p.video_url)}" target="_blank" rel="noopener">Watch project video</a>` : ''}
+      ${p.map_url || (p.lat != null && p.lng != null) ? `<a class="btn btn--ghost btn--sm" href="${esc(p.map_url || `https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`)}" target="_blank" rel="noopener">Open in Google Maps</a>` : ''}
+      ${p.lat != null && p.lng != null ? `<a class="btn btn--ghost btn--sm" href="https://www.google.com/maps/dir/?api=1&amp;destination=${p.lat},${p.lng}" target="_blank" rel="noopener">Directions</a>` : ''}
     </p>
   </div>
   <aside class="detail-side">

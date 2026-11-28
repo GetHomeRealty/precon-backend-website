@@ -9,7 +9,7 @@ import { canonicalCity } from './crud';
 // selected here, so they cannot reach the public payload even by mistake.
 const PROJECT_COLS = `id, slug, name, developer, city, location, starting_price, public_price, currency, price_from,
   property_type, unit_sizes, bedrooms, possession, project_scale, main_image, brochure_url, video_url,
-  lat, lng, status, is_featured, extra`;
+  lat, lng, map_url, status, is_featured, extra`;
 const PROPERTY_COLS = `id, slug, title, address, city, province, country, postal_code, price, currency, price_label,
   property_type, bedrooms, bathrooms, parking, sqft, description, features, main_image, video_url, map_url,
   lat, lng, mls_number, status, is_featured`;
@@ -21,7 +21,7 @@ function projectOut(p: Row, imgs: Row[]) {
   const gallery = imgs.filter((i) => i.kind === 'gallery').map((i) => i.url);
   return {
     id: p.slug, name: p.name, developer: p.developer || '—', city: canonicalCity(p.city) || '', area: p.location || '',
-    lat: n(p.lat), lng: n(p.lng), rateLow: n(p.price_from) || 0,
+    lat: n(p.lat), lng: n(p.lng), map: p.map_url || '', rateLow: n(p.price_from) || 0,
     rate: p.starting_price || (p.public_price ? `Starting from ${formatMoney(p.public_price, p.currency)}` : 'On request'),
     sizes: p.unit_sizes || 'On request',
     scale: p.project_scale || extra.scale || '—', exp: extra.exp || '—', status: p.possession || '—',
