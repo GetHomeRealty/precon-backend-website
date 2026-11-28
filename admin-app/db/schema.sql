@@ -371,6 +371,8 @@ alter table projects add column if not exists floor_plans                 jsonb 
 alter table projects add column if not exists amenity_items               jsonb not null default '[]'::jsonb;  -- [{title, icon, image, description}]
 alter table projects add column if not exists master_plan_image           text;
 alter table projects add column if not exists master_plan_notes           text;
+alter table projects add column if not exists master_plan_pdf             text;  -- optional PDF of the master / site plan
+alter table projects add column if not exists floor_plans_pdf             text;  -- optional single PDF with every floor plan
 alter table projects add column if not exists connectivity                jsonb not null default '[]'::jsonb;  -- [{place, time, category}]
 alter table projects add column if not exists availability_status         text not null default 'on_request';
 alter table projects add column if not exists availability_note           text;

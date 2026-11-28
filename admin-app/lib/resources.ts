@@ -205,11 +205,16 @@ export const RESOURCES: Record<string, Resource> = {
       { name: 'details', label: 'Project details', type: 'pairs', section: 'Project Details', span: 6,
         help: 'RERA number, land area, towers, floors, homes, open space, clubhouse, amenity floor, specifications… one row each.' },
       // 4 — Floor plans
-      { name: 'floor_plans', label: 'Floor plans', type: 'floorplans', section: 'Floor Plans', span: 6 },
+      { name: 'floor_plans', label: 'Floor plans', type: 'floorplans', section: 'Floor Plans', span: 6,
+        help: 'Each plan can have an image, a PDF, or both.' },
+      { name: 'floor_plans_pdf', label: 'All floor plans (PDF)', type: 'file', section: 'Floor Plans', span: 6,
+        help: 'Optional — one PDF with every floor plan, shown as a download link under the plans.' },
       // 5 — Amenities
       { name: 'amenity_items', label: 'Amenities', type: 'amenityItems', section: 'Amenities', span: 6 },
       // 6 — Master plan
       { name: 'master_plan_image', label: 'Master plan / site plan', type: 'image', section: 'Master Plan', span: 6, help: 'Visitors can zoom into it.' },
+      { name: 'master_plan_pdf', label: 'Master plan PDF', type: 'file', section: 'Master Plan', span: 6,
+        help: 'Optional — shown as a download link with the master plan (or on its own if there is no image).' },
       { name: 'master_plan_notes', label: 'Layout notes', type: 'textarea', section: 'Master Plan', maxLength: 3000, span: 6,
         placeholder: 'Six towers around a central landscaped court\nMain entry & exit on the Kokapet–Neopolis road\nClubhouse at the centre of the site',
         help: 'One point per line — tower layout, entry/exit, clubhouse, open spaces, internal roads, landscape zones.' },

@@ -105,6 +105,7 @@ async function stillReferenced(urls: string[]): Promise<Set<string>> {
        select 1 from properties where main_image = u or video_url = u union all
        select 1 from property_images where url = u union all
        select 1 from projects where main_image = u or brochure_url = u or master_plan_image = u
+         or master_plan_pdf = u or floor_plans_pdf = u
          or strpos(floor_plans::text, u) > 0 or strpos(amenity_items::text, u) > 0 union all
        select 1 from project_images where url = u union all
        select 1 from videos where thumbnail = u union all

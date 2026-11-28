@@ -236,7 +236,8 @@ function FieldInput({ f, value, error, onChange, isNew, nameHint = '' }: { f: Fi
       input = <ImageInput id={id} value={value || null} nameHint={f.name === 'og_image' ? `${nameHint}-social` : nameHint} onChange={(v) => onChange(v ?? '')} />;
       break;
     case 'file':
-      input = <PdfInput id={id} value={value || null} nameHint={`${nameHint}-brochure`} onChange={(v) => onChange(v ?? '')} />;
+      input = <PdfInput id={id} value={value || null} onChange={(v) => onChange(v ?? '')}
+        nameHint={`${nameHint}-${({ master_plan_pdf: 'master-plan', floor_plans_pdf: 'floor-plans' } as Record<string, string>)[f.name] || 'brochure'}`} />;
       break;
     case 'tags':
       input = <TagsInput id={id} value={value || []} onChange={onChange} />;

@@ -17,7 +17,7 @@ const PROPERTY_COLS = `id, slug, title, address, city, province, country, postal
   created_at, updated_at, ${SEO_COLS}`;
 const PROJECT_COLS = `id, slug, name, developer, city, location, starting_price, public_price, currency, property_type, unit_sizes,
   bedrooms, possession, description, amenities, amenity_items, details, floor_plans, connectivity, master_plan_image, master_plan_notes,
-  project_scale, main_image, brochure_url, video_url, map_url, lat, lng, status, extra, created_at, updated_at, ${SEO_COLS}`;
+  master_plan_pdf, floor_plans_pdf, project_scale, main_image, brochure_url, video_url, map_url, lat, lng, status, extra, created_at, updated_at, ${SEO_COLS}`;
 const AGENT_COLS = `id, slug, name, designation, photo, phone, email, whatsapp, bio, languages, service_areas, instagram, facebook,
   linkedin, youtube, updated_at, ${SEO_COLS}`;
 const LOCATION_COLS = `id, slug, name, heading, intro, market_content, faqs, match_cities, hero_image, updated_at, ${SEO_COLS}`;
@@ -25,6 +25,10 @@ const VIDEO_COLS = `id, slug, title, youtube_url, instagram_url, thumbnail, desc
   updated_at, seo_title, meta_description, image_alt_text, is_indexed`;
 
 const MAP_PAGES: Record<string, string> = { hyderabad: '/hyderabad.html', visakhapatnam: '/visakhapatnam.html' };
+
+/** A link to an uploaded PDF (floor plan / master plan); `button` renders it like the page's other download buttons. */
+const pdfLink = (url: string, label: string, button = false) =>
+  `<a${button ? ' class="btn btn--ghost btn--sm"' : ''} href="${esc(media(url))}" target="_blank" rel="noopener">${esc(label)}</a>`;
 
 /** Page metadata from a record's SEO fields, falling back to generated suggestions. */
 function metaFor(ctx: SeoContext, kind: SuggestKind, rec: Row, path: string, extra: Partial<PageMeta>): PageMeta {
@@ -145,8 +149,8 @@ export async function projectPage(req: Request, slug: string) {
   const named = `${p.name}${p.city && !p.name.toLowerCase().includes(String(p.city).toLowerCase()) ? `, ${p.city}` : ''}`;
   const images = [p.main_image ? { url: p.main_image, alt: p.image_alt_text || `${named} — project image` } : null,
     ...imgs.filter((i) => i.kind === 'gallery').map((g, i) => ({ url: g.url, alt: g.alt || `${named} — photo ${i + 2}` }))].filter(Boolean) as { url: string; alt: string }[];
-  const plans: { url: string; alt: string }[] = (p.floor_plans || []).filter((f: Row) => f.image).map((f: Row) => ({
-    url: f.image, alt: [p.name, f.bhk, f.size, f.facing && `${f.facing} facing`, 'floor plan'].filter(Boolean).join(' — ') }));
+  const plans: { url: string; alt: string; pdf?: string }[] = (p.floor_plans || []).filter((f: Row) => f.image || f.pdf).map((f: Row) => ({
+    url: f.image || '', pdf: f.pdf || '', alt: [p.name, f.bhk, f.size, f.facing && `${f.facing} facing`, 'floor plan'].filter(Boolean).join(' — ') }));
   if (!plans.length) for (const pl of det.plans || []) if (pl && pl[1]) plans.push({ url: pl[1], alt: `${p.name} — ${pl[0] || 'floor plan'}` });
   const description = p.description || det.tagline || '';
   const amenities: string[] = (p.amenity_items || []).length ? p.amenity_items.map((a: Row) => a.title)
@@ -193,8 +197,9 @@ export async function projectPage(req: Request, slug: string) {
     ${facts.length ? `<h2 class="h3" style="margin:2rem 0 .9rem">Project details</h2><div class="spec-grid">${facts.map(([k, v]) => `<div class="s"><small>${esc(k)}</small><b style="font-size:1rem">${esc(v)}</b></div>`).join('')}</div>` : ''}
     ${amenities.length ? `<h2 class="h3" style="margin:2rem 0 .9rem">Amenities</h2><ul class="feature-list">${amenities.map((a) => `<li>${CHECK}${esc(a)}</li>`).join('')}</ul>` : ''}
     ${plans.length ? `<h2 class="h3" style="margin:2rem 0 .9rem">Floor plans</h2><div class="grid cols-2" style="gap:1rem">${plans.slice(0, 12).map((pl) =>
-      `<figure style="margin:0;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:#fff">${img(pl.url, pl.alt, { w: 800, h: 600, style: 'width:100%;height:auto;display:block' })}<figcaption class="muted" style="padding:.6rem .9rem;font-size:.85rem">${esc(pl.alt)}</figcaption></figure>`).join('')}</div>` : ''}
-    ${p.master_plan_image ? `<h2 class="h3" style="margin:2rem 0 .9rem">Master plan</h2><figure style="margin:0;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:#fff">${img(p.master_plan_image, `${p.name} master plan`, { w: 1200, h: 900, style: 'width:100%;height:auto;display:block' })}</figure>${richText(p.master_plan_notes)}` : ''}
+      `<figure style="margin:0;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:#fff">${pl.url ? img(pl.url, pl.alt, { w: 800, h: 600, style: 'width:100%;height:auto;display:block' }) : ''}<figcaption class="muted" style="padding:.6rem .9rem;font-size:.85rem">${esc(pl.alt)}${pl.pdf ? ` · ${pdfLink(pl.pdf, 'PDF')}` : ''}</figcaption></figure>`).join('')}</div>` : ''}
+    ${p.floor_plans_pdf ? `${plans.length ? '' : '<h2 class="h3" style="margin:2rem 0 .9rem">Floor plans</h2>'}<p style="margin:${plans.length ? '1rem' : '0'} 0 0">${pdfLink(p.floor_plans_pdf, 'All floor plans (PDF)', true)}</p>` : ''}
+    ${p.master_plan_image || p.master_plan_pdf ? `<h2 class="h3" style="margin:2rem 0 .9rem">Master plan</h2>${p.master_plan_image ? `<figure style="margin:0;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:#fff">${img(p.master_plan_image, `${p.name} master plan`, { w: 1200, h: 900, style: 'width:100%;height:auto;display:block' })}</figure>` : ''}${p.master_plan_pdf ? `<p style="margin:${p.master_plan_image ? '1rem' : '0'} 0 0">${pdfLink(p.master_plan_pdf, 'Master plan (PDF)', true)}</p>` : ''}${richText(p.master_plan_notes)}` : ''}
     ${connectivity.length ? `<h2 class="h3" style="margin:2rem 0 .9rem">Location &amp; connectivity</h2><div class="spec-grid">${connectivity.map(([k, v]) => `<div class="s"><small>${esc(k)}</small><b style="font-size:1rem">${esc(v || '')}</b></div>`).join('')}</div>` : ''}
     <p style="margin-top:1.6rem;display:flex;gap:.6rem;flex-wrap:wrap">
       ${mapPage ? `<a class="btn btn--ghost btn--sm" href="${mapPage}?project=${esc(p.slug)}">View on the ${esc(p.city)} map</a>` : ''}
@@ -523,7 +528,7 @@ export async function configProjectPage(req: Request, slug: string, cslug: strin
   };
   const crumbs: Crumb[] = [home(ctx), ...(loc ? [{ name: `Real estate in ${loc.name}`, url: `/real-estate/${loc.slug}` }] : []),
     { name: p.name, url: `/projects/${p.slug}` }, { name: key }];
-  const plans = c.plans.filter((x) => x.image);
+  const plans = c.plans.filter((x) => x.image || x.pdf);
   const bedrooms = parseFloat(key) || undefined;
   meta.jsonld = [
     webPage(ctx, { url: canonical, name: title, description, image: meta.ogImage }),
@@ -566,7 +571,7 @@ export async function configProjectPage(req: Request, slug: string, cslug: strin
     ${plans.length ? `<h2 class="h3" style="margin:2rem 0 .9rem">${esc(key)} floor plans</h2><div class="grid cols-2" style="gap:1rem">${plans.map((x) => {
       const alt = [p.name, key, x.size, x.facing && `${x.facing} facing`, 'floor plan'].filter(Boolean).join(' — ');
       const cap = [x.size, x.carpet && `carpet ${x.carpet}`, x.tower && `tower ${x.tower}`, x.facing && `${x.facing} facing`].filter(Boolean).join(' · ');
-      return `<figure style="margin:0;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:#fff">${img(x.image, alt, { w: 800, h: 600, style: 'width:100%;height:auto;display:block' })}<figcaption class="muted" style="padding:.6rem .9rem;font-size:.85rem"><b style="color:var(--ink)">${esc(x.bhk || key)}</b>${cap ? ` · ${esc(cap)}` : ''}${x.description ? `<br>${esc(x.description)}` : ''}</figcaption></figure>`;
+      return `<figure style="margin:0;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:#fff">${x.image ? img(x.image, alt, { w: 800, h: 600, style: 'width:100%;height:auto;display:block' }) : ''}<figcaption class="muted" style="padding:.6rem .9rem;font-size:.85rem"><b style="color:var(--ink)">${esc(x.bhk || key)}</b>${cap ? ` · ${esc(cap)}` : ''}${x.pdf ? ` · ${pdfLink(x.pdf, 'PDF')}` : ''}${x.description ? `<br>${esc(x.description)}` : ''}</figcaption></figure>`;
     }).join('')}</div>` : ''}
     ${c.rows.length ? `<h2 class="h3" style="margin:2rem 0 .9rem">${esc(key)} units</h2>${unitTable(c.head, c.rows)}<p class="muted" style="font-size:.82rem;margin-top:.5rem">From the builder’s published price sheet; prices and availability change — confirm with our team.</p>` : ''}
     ${amen.length ? `<h2 class="h3" style="margin:2rem 0 .9rem">Amenities for ${esc(key)} residents</h2><ul class="feature-list">${amen.map((a) => `<li>${CHECK}${esc(a.title)}</li>`).join('')}</ul>` : ''}

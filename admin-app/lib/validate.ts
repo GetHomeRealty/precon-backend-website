@@ -77,9 +77,9 @@ function fieldSchema(f: Field): z.ZodTypeAny {
       break;
     case 'floorplans':
       s = list(z.object({
-        image: url(),
+        image: url(), pdf: url(),
         bhk: opt(60), size: opt(60), carpet: opt(60), tower: opt(80), facing: opt(40), description: opt(500),
-      }).refine((f) => f.image || f.bhk || f.size, 'Add an image, BHK or size.'), 60);
+      }).refine((f) => f.image || f.pdf || f.bhk || f.size, 'Add an image, PDF, BHK or size.'), 60);
       break;
     case 'amenityItems':
       s = list(z.object({

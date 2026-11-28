@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 const COLS = `id, slug, name, developer, city, location, description, possession, status, property_type, bedrooms, unit_sizes,
   project_scale, extra, starting_price, public_price, currency, main_image, image_alt_text, brochure_url, video_url, lat, lng,
-  details, floor_plans, amenity_items, amenities, master_plan_image, master_plan_notes, connectivity,
+  details, floor_plans, amenity_items, amenities, master_plan_image, master_plan_notes, master_plan_pdf, floor_plans_pdf, connectivity,
   availability_status, availability_note`;
 
 export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }> }) {
@@ -34,8 +34,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
     lat: p.lat, lng: p.lng,
     details: p.details || [],
     floorPlans: p.floor_plans || [],
+    floorPlansPdf: p.floor_plans_pdf || '',
     amenities: amenityItems,
-    masterPlan: p.master_plan_image ? { image: p.master_plan_image, notes: String(p.master_plan_notes || '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean) } : null,
+    masterPlan: p.master_plan_image || p.master_plan_pdf ? { image: p.master_plan_image || '', pdf: p.master_plan_pdf || '', notes: String(p.master_plan_notes || '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean) } : null,
     connectivity: p.connectivity || [],
     availability: { status: labelOf(AVAILABILITY, p.availability_status), note: p.availability_note || '' },
   }, { headers });

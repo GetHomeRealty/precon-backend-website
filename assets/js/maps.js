@@ -496,6 +496,7 @@
       connectivity:(api.connectivity&&api.connectivity.length)?api.connectivity:(x.location||[]).map(l=>({place:l[0],time:l[1]})),
       availability:api.availability||{status:'On request',note:''},
       brochure:api.brochure||brochureUrl(d),
+      plansPdf:api.floorPlansPdf||x.plansPdf||'',
     };
   }
 
@@ -627,19 +628,21 @@
       const chips=[f.carpet&&['Carpet',f.carpet],f.tower&&['Tower',f.tower],f.facing&&['Facing',f.facing]].filter(Boolean);
       const alt=[d.name,f.bhk,f.size,f.facing&&f.facing+' facing','floor plan'].filter(Boolean).join(' — ');
       return `<figure class="pm-fp" data-bhk="${esc(keyOf(f))}">
-        ${f.image?`<button type="button" class="pm-fp-img" data-zoom="${esc(mediaUrl(f.image))}" data-zoom-alt="${esc(alt)}" aria-label="Zoom ${esc(head)}">${lazyImg(f.image,alt)}<span class="pm-zoomhint">Tap to zoom</span></button>`:''}
+        ${f.image?`<button type="button" class="pm-fp-img" data-zoom="${esc(mediaUrl(f.image))}" data-zoom-alt="${esc(alt)}" aria-label="Zoom ${esc(head)}">${lazyImg(f.image,alt)}<span class="pm-zoomhint">Tap to zoom</span></button>`
+          :f.pdf?`<a class="pm-fp-img pm-fp-doc" href="${esc(mediaUrl(f.pdf))}" target="_blank" rel="noopener" aria-label="Open the ${esc(head)} floor plan (PDF)">${ICON.doc||''}<span>Floor plan (PDF)</span></a>`:''}
         <figcaption><b>${esc(head)}</b>
           ${chips.length?`<span class="pm-fp-meta">${chips.map(c=>`<span><small>${c[0]}</small>${esc(c[1])}</span>`).join('')}</span>`:''}
-          ${f.description&&(f.bhk||f.size)?`<p>${esc(f.description)}</p>`:''}</figcaption></figure>`;
+          ${f.description&&(f.bhk||f.size)?`<p>${esc(f.description)}</p>`:''}
+          ${f.pdf&&f.image?`<a class="pm-fp-pdf" href="${esc(mediaUrl(f.pdf))}" target="_blank" rel="noopener">${ICON.doc||''}PDF</a>`:''}</figcaption></figure>`;
     }).join('');
     const table=(x.unitHead&&x.unitRows&&x.unitRows.length)?`<div class="pm-sec"><h4>All configurations</h4><div class="pm-tablewrap"><table class="pm-table"><thead><tr>${x.unitHead.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${x.unitRows.map(r=>`<tr data-bhk="${esc(rowKey(r))}">${r.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`:'';
-    const pdf=x.plansPdf||S.brochure;
+    const pdf=S.plansPdf||S.brochure;
     return `<div class="pm-body">
       <div class="pm-slhead"><h3 class="pm-sltitle">Floor plans</h3>${filter}</div>
       ${cards?`<div class="pm-fps">${cards}</div>`:''}
       <p class="pm-text" data-bhk-empty hidden>No floor-plan drawings for this configuration — see the table below, or ask us on WhatsApp.</p>
       ${table}
-      ${pdf?`<a class="pm-planlink" href="${esc(mediaUrl(pdf))}" target="_blank" rel="noopener">${ICON.doc||''}${x.plansPdf?'All floor plans (PDF)':'Full floor plans are in the project brochure (PDF)'}</a>`:''}
+      ${pdf?`<a class="pm-planlink" href="${esc(mediaUrl(pdf))}" target="_blank" rel="noopener">${ICON.doc||''}${S.plansPdf?'All floor plans (PDF)':'Full floor plans are in the project brochure (PDF)'}</a>`:''}
     </div>`;
   }
   /** Configurations an amenity is limited to ("4 BHK only"); [] = shared by every home. */
@@ -716,7 +719,8 @@
   function slideMaster(S){
     const m=S.masterPlan, alt=S.d.name+' master plan';
     return `<div class="pm-body"><h3 class="pm-sltitle">Master plan</h3>
-      <button type="button" class="pm-master" data-zoom="${esc(mediaUrl(m.image))}" data-zoom-alt="${esc(alt)}" aria-label="Zoom the master plan">${lazyImg(m.image,alt)}<span class="pm-zoomhint">Tap to zoom</span></button>
+      ${m.image?`<button type="button" class="pm-master" data-zoom="${esc(mediaUrl(m.image))}" data-zoom-alt="${esc(alt)}" aria-label="Zoom the master plan">${lazyImg(m.image,alt)}<span class="pm-zoomhint">Tap to zoom</span></button>`:''}
+      ${m.pdf?`<a class="pm-planlink" href="${esc(mediaUrl(m.pdf))}" target="_blank" rel="noopener">${ICON.doc||''}Master plan (PDF)</a>`:''}
       ${(m.notes||[]).length?`<ul class="pm-list" style="margin-top:1rem">${m.notes.map(n=>`<li>${esc(n)}</li>`).join('')}</ul>`:''}
     </div>`;
   }
@@ -761,9 +765,9 @@
 
   function buildSlides(S){
     const x=S.x, list=[['Overview',slideOverview],['Details',slideDetails]];
-    if(S.floorPlans.length||(x.unitRows&&x.unitRows.length)||x.plansPdf) list.push(['Floor Plans',slidePlans]);
+    if(S.floorPlans.length||(x.unitRows&&x.unitRows.length)||S.plansPdf) list.push(['Floor Plans',slidePlans]);
     if(S.amenities.length||(x.clubLevels&&x.clubLevels.length)||x.clubhouse) list.push(['Amenities',slideAmenities]);
-    if(S.masterPlan&&S.masterPlan.image) list.push(['Master Plan',slideMaster]);
+    if(S.masterPlan&&(S.masterPlan.image||S.masterPlan.pdf)) list.push(['Master Plan',slideMaster]);
     list.push(['Location',slideLocation],['Availability',slideAvailability]);
     return list.map(([label,fn])=>({label,html:fn(S)}));
   }

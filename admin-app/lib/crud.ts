@@ -121,7 +121,7 @@ function mediaUrls(r: Resource, rec: Row): string[] {
   const urls = r.fields.filter((f) => f.type === 'image' || f.type === 'file').map((f) => rec[f.name]);
   for (const items of Object.values((rec.galleries || {}) as Record<string, { url: string }[]>)) urls.push(...items.map((x) => x.url));
   // images inside structured lists (floor plans, amenity cards)
-  for (const f of r.fields) if (f.type === 'floorplans' || f.type === 'amenityItems') urls.push(...((rec[f.name] || []) as Row[]).map((x) => x.image));
+  for (const f of r.fields) if (f.type === 'floorplans' || f.type === 'amenityItems') urls.push(...((rec[f.name] || []) as Row[]).flatMap((x) => [x.image, x.pdf]));
   return urls.filter(Boolean);
 }
 

@@ -3,7 +3,7 @@
 // floor plans, amenities and connectivity. Every list supports add / reorder / delete.
 import type { ReactNode } from 'react';
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
-import { ImageInput } from './media';
+import { ImageInput, PdfInput } from './media';
 import { AMENITY_ICONS, CONNECTIVITY_CATEGORIES } from '@/lib/resources';
 import { slugify } from '@/lib/seo/suggest';
 
@@ -67,12 +67,18 @@ const FACINGS = ['', 'East', 'West', 'North', 'South', 'North-East', 'North-West
 export function FloorPlansInput({ value, onChange, nameHint = '' }: { value: Item[]; onChange: (v: Item[]) => void; nameHint?: string }) {
   return (
     <ListEditor items={value} onChange={onChange} max={60} addLabel="Add floor plan"
-      blank={{ image: '', bhk: '', size: '', carpet: '', tower: '', facing: '', description: '' }}
+      blank={{ image: '', pdf: '', bhk: '', size: '', carpet: '', tower: '', facing: '', description: '' }}
       title={(it) => [it.bhk, it.size, it.facing && `${it.facing} facing`].filter(Boolean).join(' · ') || it.description || 'New floor plan'}
       render={(it, set) => (
         <div className="form-grid">
-          <div className="field span-6">
+          <div className="field span-3">
+            <label style={{ fontSize: 12.5 }}>Image</label>
             <ImageInput value={it.image || null} onChange={(v) => set('image', v || '')}
+              nameHint={slugify([nameHint, it.bhk, it.size, 'floor plan'].filter(Boolean).join(' '))} />
+          </div>
+          <div className="field span-3">
+            <label style={{ fontSize: 12.5 }}>PDF (optional)</label>
+            <PdfInput value={it.pdf || null} onChange={(v) => set('pdf', v || '')}
               nameHint={slugify([nameHint, it.bhk, it.size, 'floor plan'].filter(Boolean).join(' '))} />
           </div>
           <In label="Unit type / BHK" value={it.bhk} onChange={(v) => set('bhk', v)} placeholder="3 BHK" max={60} />
