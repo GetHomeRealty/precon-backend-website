@@ -201,7 +201,7 @@ export default function ResourceForm({ resourceKey, id }: { resourceKey: string;
             <div className="card-body">
               <div className="form-grid">
                 {isSeo && r.seo && <SeoPanel resourceKey={r.key} id={isNew ? null : Number(id)} rec={rec} seo={rec} set={set} />}
-                {fields.map((f) => <FieldInput key={f.name} f={f} value={rec[f.name]} error={errors[f.name]} isNew={isNew} nameHint={nameHint} onChange={(v) => setField(f.name, v)} />)}
+                {fields.map((f) => <FieldInput key={f.name} f={f} value={rec[f.name]} error={errors[f.name]} isNew={isNew} nameHint={nameHint} propertyType={rec.property_type} onChange={(v) => setField(f.name, v)} />)}
                 {fields.some((f) => f.name === 'brokerage_price') && <PricingSummary rec={rec} r={r} onUse={(v) => set(r.key === 'projects' ? 'public_price' : 'price', v)} />}
                 {gals.map((g) => (
                   <FieldWrap key={g.name} label={g.label} help={g.help} error={errors[`galleries.${g.name}`]} className="span-6">
@@ -229,7 +229,7 @@ export default function ResourceForm({ resourceKey, id }: { resourceKey: string;
   );
 }
 
-function FieldInput({ f, value, error, onChange, isNew, nameHint = '' }: { f: Field; value: any; error?: string; onChange: (v: any) => void; isNew: boolean; nameHint?: string }) {
+function FieldInput({ f, value, error, onChange, isNew, nameHint = '', propertyType }: { f: Field; value: any; error?: string; onChange: (v: any) => void; isNew: boolean; nameHint?: string; propertyType?: string }) {
   const id = `f-${f.name}`;
   const cls = `span-${f.span || 6}`;
   const inv = error ? 'invalid' : '';
@@ -278,7 +278,7 @@ function FieldInput({ f, value, error, onChange, isNew, nameHint = '' }: { f: Fi
       input = <FloorPlansInput value={value || []} onChange={onChange} nameHint={nameHint} />;
       break;
     case 'amenityItems':
-      input = <AmenityItemsInput value={value || []} onChange={onChange} nameHint={nameHint} />;
+      input = <AmenityItemsInput value={value || []} onChange={onChange} nameHint={nameHint} propertyType={propertyType} />;
       break;
     case 'connectivity':
       input = <ConnectivityInput value={value || []} onChange={onChange} />;

@@ -86,6 +86,7 @@ function fieldSchema(f: Field): z.ZodTypeAny {
         title: z.string().trim().min(1, 'Title is required.').max(100),
         icon: z.enum(['', ...AMENITY_ICONS] as [string, ...string[]]).catch('').default(''),
         image: url(), description: opt(400),
+        category: opt(60),  // "Sports", "Security"… — the website groups amenities by it
         configs: opt(80),   // "3 BHK, 4 BHK" — empty = every home
       }), 150);
       break;

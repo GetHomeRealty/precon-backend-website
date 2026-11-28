@@ -1,11 +1,12 @@
 'use client';
 // Structured list editors for the project presentation slides: details rows,
 // floor plans, amenities and connectivity. Every list supports add / reorder / delete.
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 import { ImageInput, PdfInput } from './media';
 import { AMENITY_ICONS, CONNECTIVITY_CATEGORIES } from '@/lib/resources';
 import { slugify } from '@/lib/seo/suggest';
+import { AMENITY_PRESETS, presetFor, type AmenityPreset } from '@/lib/amenity-presets';
 
 type Item = Record<string, string>;
 
@@ -95,14 +96,80 @@ export function FloorPlansInput({ value, onChange, nameHint = '' }: { value: Ite
   );
 }
 
-export function AmenityItemsInput({ value, onChange, nameHint = '' }: { value: Item[]; onChange: (v: Item[]) => void; nameHint?: string }) {
+const AM_MAX = 150;
+const amKey = (t: string) => String(t || '').toLowerCase().replace(/[’‘`]/g, "'").replace(/s+/g, ' ').trim();
+
+/** Tick standard amenities (Apartment / Villa / Plot lists, by category); each tick adds or removes one amenity. */
+function AmenityChecklist({ value, onChange, propertyType }: { value: Item[]; onChange: (v: Item[]) => void; propertyType?: string }) {
+  const [kind, setKind] = useState<AmenityPreset['key']>(presetFor(propertyType));
+  const list = value || [];
+  const have = new Set(list.map((a) => amKey(a.title)));
+  const preset = AMENITY_PRESETS.find((p) => p.key === kind)!;
+  const full = list.length >= AM_MAX;
+  const add = (items: [string, string][]) => {
+    const fresh = items.filter(([t]) => !have.has(amKey(t))).slice(0, AM_MAX - list.length);
+    onChange([...list, ...fresh.map(([title, category]) => ({ title, icon: '', image: '', description: '', configs: '', category }))]);
+  };
+  const remove = (titles: string[]) => { const k = new Set(titles.map(amKey)); onChange(list.filter((a) => !k.has(amKey(a.title)))); };
+  const ticked = preset.groups.reduce((n, [, items]) => n + items.filter((t) => have.has(amKey(t))).length, 0);
   return (
-    <ListEditor items={value} onChange={onChange} max={150} addLabel="Add amenity"
-      blank={{ title: '', icon: '', image: '', description: '', configs: '' }}
-      title={(it) => (it.title || 'New amenity') + (it.configs ? ` — ${it.configs} only` : '')}
+    <div className="am-pick">
+      <div className="am-pick-head">
+        <b>Standard amenities</b>
+        <div className="am-tabs" role="tablist" aria-label="Amenity list">
+          {AMENITY_PRESETS.map((p) => (
+            <button key={p.key} type="button" role="tab" aria-selected={p.key === kind} className={p.key === kind ? 'on' : ''} onClick={() => setKind(p.key)}>{p.label}</button>
+          ))}
+        </div>
+        <span className="help" style={{ margin: 0 }}>{ticked} ticked · {list.length} amenities in total{full ? ` (maximum ${AM_MAX})` : ''}</span>
+      </div>
+      {preset.groups.map(([group, items]) => {
+        const all = items.every((t) => have.has(amKey(t)));
+        return (
+          <div className="am-group" key={group}>
+            <div className="am-group-head">
+              <span>{group}</span>
+              <button type="button" className="linkish" onClick={() => (all ? remove(items) : add(items.map((t) => [t, group])))}>{all ? 'Clear' : 'Select all'}</button>
+            </div>
+            <div className="am-grid">
+              {items.map((t) => {
+                const on = have.has(amKey(t));
+                return (
+                  <label key={t} className={`bp-check ${on ? 'on' : ''}`}>
+                    <input type="checkbox" checked={on} disabled={!on && full}
+                      onChange={(e) => (e.target.checked ? add([[t, group]]) : remove([t]))} />{t}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function AmenityItemsInput({ value, onChange, nameHint = '', propertyType }: { value: Item[]; onChange: (v: Item[]) => void; nameHint?: string; propertyType?: string }) {
+  return (
+    <>
+      <AmenityChecklist value={value} onChange={onChange} propertyType={propertyType} />
+      <details className="am-more">
+        <summary>Amenity details, images, BHK limits &amp; your own amenities ({(value || []).length})</summary>
+        <AmenityDetails value={value} onChange={onChange} nameHint={nameHint} />
+      </details>
+    </>
+  );
+}
+
+function AmenityDetails({ value, onChange, nameHint = '' }: { value: Item[]; onChange: (v: Item[]) => void; nameHint?: string }) {
+  return (
+    <ListEditor items={value} onChange={onChange} max={AM_MAX} addLabel="Add amenity"
+      blank={{ title: '', icon: '', image: '', description: '', configs: '', category: '' }}
+      title={(it) => (it.title || 'New amenity') + (it.category ? ` · ${it.category}` : '') + (it.configs ? ` — ${it.configs} only` : '')}
       render={(it, set) => (
         <div className="form-grid">
           <In label="Title" value={it.title} onChange={(v) => set('title', v)} placeholder="Infinity pool" max={100} />
+          <In label="Category (optional)" value={it.category} onChange={(v) => set('category', v)} placeholder="Swimming & Recreation" max={60} />
           <div className="field span-2"><label style={{ fontSize: 12.5 }}>Icon</label>
             <select className="select" value={it.icon || ''} onChange={(e) => set('icon', e.target.value)}>
               <option value="">Automatic (from title)</option>

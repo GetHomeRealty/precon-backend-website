@@ -658,7 +658,11 @@
     const forAttr=a=>`data-am-for="${esc(amConfigs(a).join('|'))}"`;
     const withImg=S.amenities.filter(a=>a.image), plain=S.amenities.filter(a=>!a.image);
     const imgCards=withImg.length?`<div class="pm-amimgs">${withImg.map(a=>`<figure class="pm-amimg" ${forAttr(a)}>${lazyImg(a.image,a.title)}<figcaption><b>${esc(a.title)}</b>${only(a)}${a.description?`<span>${esc(a.description)}</span>`:''}</figcaption></figure>`).join('')}</div>`:'';
-    const groups=amenityGroups(plain.map(a=>a.title));
+    // categories chosen in the admin checklist win; otherwise group by name
+    const groups=plain.some(a=>a.category)
+      ?(()=>{ const g={},order=[]; plain.forEach(a=>{ const k=a.category||'More amenities'; if(!g[k]){g[k]=[];order.push(k);} g[k].push(a.title); });
+          return order.filter(k=>k!=='More amenities').concat(g['More amenities']?['More amenities']:[]).map(k=>[k,g[k]]); })()
+      :amenityGroups(plain.map(a=>a.title));
     const byTitle={}; plain.forEach(a=>{byTitle[a.title]=a;});
     const iconCards=groups.map(g=>`<div class="pm-amgroup">${g[0]?`<h5>${esc(g[0])}</h5>`:''}<div class="pm-ams">${g[1].map(t=>{
       const a=byTitle[t]||{title:t};

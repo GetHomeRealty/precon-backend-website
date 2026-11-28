@@ -448,3 +448,19 @@ fieldset.bp-inc legend { padding: 0; margin-bottom: 6px; font-size: 13px; font-w
 .bp-price-empty b { color: var(--accent); margin-left: 4px; }
 .bp-price-edit.flash { animation: bpflash 1.6s ease-out 1; border-radius: 8px; }
 @keyframes bpflash { 0%, 40% { background: #fff1f1; box-shadow: 0 0 0 6px #fff1f1; } 100% { background: transparent; box-shadow: 0 0 0 6px transparent; } }
+
+/* ---------- amenity checklist (project form → Amenities) ---------- */
+.am-pick { border: 1px solid var(--line); border-radius: 10px; padding: 14px; background: var(--surface-2); margin-bottom: 14px; }
+.am-pick-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 10px; }
+.am-pick-head b { font-size: 14px; }
+.am-tabs { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; }
+.am-tabs button { border: 0; background: #fff; padding: 6px 14px; font: inherit; font-size: 13px; cursor: pointer; }
+.am-tabs button + button { border-left: 1px solid var(--line-strong); }
+.am-tabs button.on { background: var(--accent); color: #fff; font-weight: 600; }
+.am-group { margin-top: 12px; }
+.am-group-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; font-size: 13px; font-weight: 600; }
+.am-group-head .linkish { border: 0; background: none; padding: 0; font: inherit; font-size: 12px; font-weight: 500; color: var(--accent); cursor: pointer; }
+.am-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; }
+.am-grid .bp-check { width: 100%; font-size: 13px; background: #fff; }
+.am-grid .bp-check.on { background: #fff5f5; }
+.am-more > summary { cursor: pointer; font-size: 13px; font-weight: 600; margin: 4px 0 10px; }
